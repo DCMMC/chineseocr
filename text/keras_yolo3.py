@@ -3,7 +3,7 @@
 """
 YOLO_v3 Model Defined in Keras.
 Reference: https://github.com/qqwweee/keras-yolo3.git
-@@ 2019-02-22 替换keras---->tf.keras  K.tile--->tf.tile K.control_flow_ops.while_loop------>tf.while_loop
+@@ 2019-02-22 替换keras---->tf.compat.v1.keras  K.tile--->tf.tile K.control_flow_ops.while_loop------>tf.while_loop
 """
 from functools import reduce
 from functools import wraps
@@ -19,21 +19,21 @@ from keras.regularizers import l2
 from keras.layers import Lambda
 from keras.layers import concatenate
 """
-K                  = tf.keras.backend
-Conv2D             = tf.keras.layers.Conv2D
-Add                = tf.keras.layers.Add
-ZeroPadding2D      = tf.keras.layers.ZeroPadding2D
-UpSampling2D       = tf.keras.layers.UpSampling2D
-Concatenate        = tf.keras.layers.Concatenate
-MaxPooling2D       = tf.keras.layers.MaxPooling2D
-Input              = tf.keras.layers.Input
-LeakyReLU          = tf.keras.layers.LeakyReLU
-BatchNormalization = tf.keras.layers.BatchNormalization
-Lambda             = tf.keras.layers.Lambda
-concatenate        = tf.keras.layers.concatenate
-Model              = tf.keras.models.Model
-l2                 = tf.keras.regularizers.l2
-l1                 = tf.keras.regularizers.l1
+K                  = tf.compat.v1.keras.backend
+Conv2D             = tf.compat.v1.keras.layers.Conv2D
+Add                = tf.compat.v1.keras.layers.Add
+ZeroPadding2D      = tf.compat.v1.keras.layers.ZeroPadding2D
+UpSampling2D       = tf.compat.v1.keras.layers.UpSampling2D
+Concatenate        = tf.compat.v1.keras.layers.Concatenate
+MaxPooling2D       = tf.compat.v1.keras.layers.MaxPooling2D
+Input              = tf.compat.v1.keras.layers.Input
+LeakyReLU          = tf.compat.v1.keras.layers.LeakyReLU
+BatchNormalization = tf.compat.v1.keras.layers.BatchNormalization
+Lambda             = tf.compat.v1.keras.layers.Lambda
+concatenate        = tf.compat.v1.keras.layers.concatenate
+Model              = tf.compat.v1.keras.models.Model
+l2                 = tf.compat.v1.keras.regularizers.l2
+l1                 = tf.compat.v1.keras.regularizers.l1
 
 def compose(*funcs):
     """Compose arbitrarily many functions, evaluated left to right.
@@ -100,7 +100,6 @@ def make_last_layers(x, num_filters, out_filters):
     return x, y
 
 
-
 def yolo_head(feats, anchors, num_classes, input_shape, calc_loss=False):
     """Convert final layer features to bounding box parameters."""
     num_anchors = len(anchors)
@@ -108,19 +107,23 @@ def yolo_head(feats, anchors, num_classes, input_shape, calc_loss=False):
     anchors_tensor = K.reshape(K.constant(anchors), [1, 1, 1, num_anchors, 2])
 
     grid_shape = K.shape(feats)[1:3] # height, width
+    # (h, w, 1, 1)
     grid_y =tf.tile(K.reshape(K.arange(0, stop=grid_shape[0]), [-1, 1, 1, 1]),
         [1, grid_shape[1], 1, 1])
+    # (h, w, 1, 1)
     grid_x =tf.tile(K.reshape(K.arange(0, stop=grid_shape[1]), [1, -1, 1, 1]),
         [grid_shape[0], 1, 1, 1])
+    # (h, w, 1, 2)
     grid = K.concatenate([grid_x, grid_y])
     grid = K.cast(grid, K.dtype(feats))
 
+    # (B, h, w, 3, 7)
     feats = K.reshape(
         feats, [-1, grid_shape[0], grid_shape[1], num_anchors, num_classes + 5])
 
     # Adjust preditions to each spatial grid point and anchor size.
-    box_xy = (K.sigmoid(feats[..., :2]) + grid) / K.cast(grid_shape[::-1], K.dtype(feats))
-    box_wh = K.exp(feats[..., 2:4]) * anchors_tensor / K.cast(input_shape[::-1], K.dtype(feats))
+    box_xy = (K.sigmoid(feats[..., :2]) + grid) / K.cast(grid_shape[..., ::-1], K.dtype(feats))
+    box_wh = K.exp(feats[..., 2:4]) * anchors_tensor / K.cast(input_shape[..., ::-1], K.dtype(feats))
     box_confidence = K.sigmoid(feats[..., 4:5])
     box_class_probs = K.sigmoid(feats[..., 5:])
 
@@ -153,8 +156,8 @@ def preprocess_true_boxes(true_boxes, input_shape, anchors, num_classes):
     input_shape = np.array(input_shape, dtype='int32')
     boxes_xy = (true_boxes[..., 0:2] + true_boxes[..., 2:4]) // 2
     boxes_wh = true_boxes[..., 2:4] - true_boxes[..., 0:2]
-    true_boxes[..., 0:2] = boxes_xy/input_shape[::-1]
-    true_boxes[..., 2:4] = boxes_wh/input_shape[::-1]
+    true_boxes[..., 0:2] = boxes_xy/input_shape[..., ::-1]
+    true_boxes[..., 2:4] = boxes_wh/input_shape[..., ::-1]
 
     m = true_boxes.shape[0]
     grid_shapes = [input_shape//{0:32, 1:16, 2:8}[l] for l in range(num_layers)]
@@ -244,11 +247,9 @@ def box_iou(b1, b2):
     return iou
 
 
-
 def box_layer(inputs,anchors,num_classes):
     y1,y2,y3,image_shape,input_shape = inputs
     out = [y1,y2,y3]
-    
     num_layers = len(out)
     anchor_mask = [[6,7,8], [3,4,5], [0,1,2]]
     boxes = []
@@ -258,15 +259,12 @@ def box_layer(inputs,anchors,num_classes):
     #new_shape   = K.round(image_shape * K.min(input_shape/image_shape))
     #offset = (input_shape-new_shape)/2./input_shape
     #scale = input_shape/new_shape
-    
     for lay in range(num_layers):
         box_xy, box_wh, box_confidence, box_class_probs = yolo_head(out[lay],anchors[anchor_mask[lay]], num_classes, input_shape)
         #box_xy = (box_xy - offset) * scale
         #box_wh = box_wh*scale
-        
         box_score = box_confidence * box_class_probs
         box_score = K.reshape(box_score, [-1, num_classes])
-        
         box_mins  = box_xy - (box_wh / 2.)
         box_maxes = box_xy + (box_wh / 2.)
         box =  K.concatenate([
@@ -275,44 +273,43 @@ def box_layer(inputs,anchors,num_classes):
                         box_maxes[..., 0:1], # xmax
                         box_maxes[..., 1:2]  # ymax
                     ],axis=-1)
-        
         box = K.reshape(box, [-1, 4])
-        
         boxes.append(box)
-        
         scores.append(box_score)
-        
-    boxes  = concatenate(boxes, axis=0)
-    scores = concatenate(scores, axis=0)
-    
-    boxes *= K.concatenate([image_shape[::-1], image_shape[::-1]])
-    
+    boxes  = K.concatenate(boxes, axis=0)
+    scores = K.concatenate(scores, axis=0)
+    boxes *= K.concatenate([image_shape[..., ::-1], image_shape[..., ::-1]])
     return boxes,scores[...,1]
-    #return concatenate([boxes,scores],axis=1) 
+    #return concatenate([boxes,scores],axis=1)
 
 
 def yolo_text(num_classes,anchors,train=False):
-    
     imgInput = Input(shape=(None,None,3))
-    
+    # (608, 608, 3) => (19, 19, 1024)
     darknet = Model(imgInput, darknet_body(imgInput))
+    # 3
     num_anchors = len(anchors)//3
+    # num_classes=2 (text or non-text)
+    # x: (19, 19, 512), y1: (19, 19, 21)
     x, y1 = make_last_layers(darknet.output, 512, num_anchors*(num_classes+5))
 
+    # x: (38, 38, 512)
     x = compose(
             DarknetConv2D_BN_Leaky(256, (1,1)),
             UpSampling2D(2))(x)
+    # 152nd layer is the output of second last ResBlock, with shape (38, 38, 512)
     x = Concatenate()([x,darknet.layers[152].output])
+    # x: (38, 38, 256), y2: (38, 38, 21)
     x, y2 = make_last_layers(x, 256, num_anchors*(num_classes+5))
 
+    # (76, 76, 256)
     x = compose(
             DarknetConv2D_BN_Leaky(128, (1,1)),
             UpSampling2D(2))(x)
+    # 92nd layer is the output of third last ResBlock, with shape (76, 76, 256)
     x = Concatenate()([x,darknet.layers[92].output])
+    # x: (76, 76, 128), y3: (76, 76, 21)
     x, y3 = make_last_layers(x, 128, num_anchors*(num_classes+5))
     out = [y1,y2,y3]
     textModel = Model([imgInput],out)
     return textModel
-
-        
-        
