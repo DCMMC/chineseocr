@@ -3,7 +3,7 @@ pwd = os.getcwd()
 ########################文字检测################################################
 ##文字检测引擎
 IMGSIZE = (608,608)## yolo3 输入图像尺寸
-yoloTextFlag = 'keras' ##keras,opencv,darknet，模型性能 keras>darknet>opencv
+yoloTextFlag = 'darknet' ##keras,opencv,darknet，模型性能 keras>darknet>opencv
 ############## keras yolo  ##############
 keras_anchors = '8,11, 8,16, 8,23, 8,33, 8,48, 8,97, 8,139, 8,198, 8,283'
 class_names = ['none','text',]
@@ -23,7 +23,7 @@ yoloData    = os.path.join(pwd,"models","text.data")
 
 ## GPU选择及启动GPU序号
 GPU = True ##OCR 是否启用GPU
-GPUID = 2 ##调用GPU序号
+GPUID = 1 ##调用GPU序号
 
 ##vgg文字方向检测模型
 DETECTANGLE=False##是否进行文字方向检测

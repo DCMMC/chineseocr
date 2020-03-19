@@ -137,3 +137,11 @@ NVCCFLAGS= --compiler-options -fPIC -isystem /data/xiaowentao/.anaconda3/include
 # $(NVCC) $(ARCH) $(COMMON) --compiler-options "$(CFLAGS)" -c $< -o $@
 $(NVCC) $(ARCH) $(COMMON) $(NVCCFLAGS) -c $< -o $@
 ```
+
+If you encounter the error:
+
+```
+nvcc fatal   : A single input file is required for a non-link phase when an outputfile is specified
+```
+
+Maybe you can check is there is any non-ascii character... e.g. '-' instead of '–'.
