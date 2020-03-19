@@ -11,6 +11,7 @@ import torch
 from collections import OrderedDict
 from torch.autograd import Variable
 from crnn.util import resizeNormalize ,strLabelConverter
+from config import GPUID
 
 class BidirectionalLSTM(nn.Module):
     

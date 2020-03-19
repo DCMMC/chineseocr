@@ -25,13 +25,15 @@ if yoloTextFlag =='keras' or AngleModelFlag=='tf' or ocrFlag=='keras':
     if GPU:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(GPUID)
         import tensorflow as tf
-        from tf.keras import backend as K
-        config = tf.ConfigProto()
+        # physical_devices = tensorflow.config.list_physical_devices('GPU')
+        # tensorflow.config.set_visible_devices(physical_devices[int(GPUID)], 'GPU')
+        import tensorflow.compat.v1.keras.backend as K
+        config = tf.compat.v1.ConfigProto()
         config.gpu_options.allocator_type = 'BFC'
-        config.gpu_options.per_process_gpu_memory_fraction = 0.3## GPU最大占用量
+        config.gpu_options.per_process_gpu_memory_fraction = 0.8 # GPU最大占用量
         config.gpu_options.allow_growth = True##GPU是否可动态增加
-        K.set_session(tf.Session(config=config))
-        K.get_session().run(tf.global_variables_initializer())
+        K.set_session(tf.compat.v1.Session(config=config))
+        # K.get_session().run(tf.global_variables_initializer())
     else:
       ##CPU启动
       os.environ["CUDA_VISIBLE_DEVICES"] = ''
@@ -47,7 +49,10 @@ elif yoloTextFlag=='keras':
     from text.keras_detect import  text_detect
 else:
      print( "err,text engine in keras\opencv\darknet")
-from text.opencv_dnn_detect import angle_detect
+if DETECTANGLE:
+    from text.opencv_dnn_detect import angle_detect
+else:
+    angle_detect = None
 
 if ocr_redis:
     ##多任务并发识别
@@ -55,6 +60,7 @@ if ocr_redis:
     ocr = redisDataBase().put_values
 else:
     from crnn.keys import alphabetChinese,alphabetEnglish
+    print('prepare crnn')
     if ocrFlag=='keras':
         from crnn.network_keras import CRNN
         if chineseModel:
@@ -142,7 +148,9 @@ class OCR:
                     os.remove(filelock)
                     break
                 else:
-                    detectAngle = textAngle
+                    # DCMMC: disable text angle detection
+                    # detectAngle = textAngle
+                    detectAngle = False
                     result,angle= model.model(img,
                                                 scale=scale,
                                                 maxScale=maxScale,
