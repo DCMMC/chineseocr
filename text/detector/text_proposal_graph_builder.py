@@ -15,7 +15,7 @@ class Graph:
                     v=np.where(self.graph[v, :])[0][0]
                     sub_graphs[-1].append(v)
         return sub_graphs
-    
+
 
 class TextProposalGraphBuilder:
     """
@@ -32,7 +32,7 @@ class TextProposalGraphBuilder:
         self.MAX_HORIZONTAL_GAP = MAX_HORIZONTAL_GAP
         self.MIN_V_OVERLAPS = MIN_V_OVERLAPS
         self.MIN_SIZE_SIM = MIN_SIZE_SIM
-        
+
     def get_successions(self, index):
             box=self.text_proposals[index]
             results=[]

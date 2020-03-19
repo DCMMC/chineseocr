@@ -30,7 +30,6 @@ def post(p,billModel='通用OCR'):
             data =[]
     print(data)
 
-    
 if __name__=='__main__':
     p = 'test/idcard-demo.jpeg'
     post(p,'身份证')

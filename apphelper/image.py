@@ -102,14 +102,13 @@ def resize_box(boxes,scale):
         angle = box['angle']
         newBoxes.append({'cx':cx,'cy':cy,'w':w,'h':h,'angle':angle})
     return newBoxes
-        
+
 def resize_im(w,h, scale=416, max_scale=608):
     f=float(scale)/min(h, w)
     if max_scale is not None:
         if  f*max(h, w)>max_scale:
             f=float(max_scale)/max(h, w)
     newW,newH = int(w*f),int(h*f)
-    
     return newW-(newW%32),newH-(newH%32)
 
 
@@ -237,11 +236,8 @@ def estimate_skew_angle(raw):
         v = np.mean(roest,axis=1)
         v = np.var(v)
         estimates.append((v,a))
-    
     _,a = max(estimates)
     return a
-
-
 
 
 def sort_box(box):
@@ -256,7 +252,6 @@ def sort_box(box):
         box[index, 6] = x4
         box[index, 7] = y4
     """
-    
     box = sorted(box,key=lambda x:sum([x[1],x[3],x[5],x[7]]))
     return list(box)
 
@@ -268,7 +263,6 @@ def get_boxes( bboxes):
     text_recs=np.zeros((len(bboxes), 8), np.int)
     index = 0
     for box in bboxes:
-        
         b1 = box[6] - box[7] / 2
         b2 = box[6] + box[7] / 2
         x1 = box[0]
@@ -279,7 +273,6 @@ def get_boxes( bboxes):
         y3 = box[5] * box[0] + b2
         x4 = box[2]
         y4 = box[5] * box[2] + b2
-        
         disX = x2 - x1
         disY = y2 - y1
         width = np.sqrt(disX*disX + disY*disY)
@@ -307,7 +300,6 @@ def get_boxes( bboxes):
         text_recs[index, 6] = x4
         text_recs[index, 7] = y4
         index = index + 1
-        
     boxes = []
     for box in text_recs:
            x1,y1 = (box[0],box[1])

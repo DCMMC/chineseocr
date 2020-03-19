@@ -9,7 +9,9 @@ import web
 import numpy as np
 import uuid
 from PIL import Image
-web.config.debug  = True
+from web.template import ALLOWED_AST_NODES
+ALLOWED_AST_NODES.append('Constant')
+web.config.debug = False
 
 filelock='file.lock'
 if os.path.exists(filelock):
@@ -18,19 +20,18 @@ if os.path.exists(filelock):
 render = web.template.render('templates', base='base')
 from config import *
 from apphelper.image import union_rbox,adjust_box_to_origin,base64_to_PIL
-from application import trainTicket,idcard 
+from application import trainTicket,idcard
 if yoloTextFlag =='keras' or AngleModelFlag=='tf' or ocrFlag=='keras':
     if GPU:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(GPUID)
         import tensorflow as tf
-        from keras import backend as K
+        from tf.keras import backend as K
         config = tf.ConfigProto()
         config.gpu_options.allocator_type = 'BFC'
         config.gpu_options.per_process_gpu_memory_fraction = 0.3## GPU最大占用量
         config.gpu_options.allow_growth = True##GPU是否可动态增加
         K.set_session(tf.Session(config=config))
         K.get_session().run(tf.global_variables_initializer())
-    
     else:
       ##CPU启动
       os.environ["CUDA_VISIBLE_DEVICES"] = ''
@@ -46,14 +47,13 @@ elif yoloTextFlag=='keras':
     from text.keras_detect import  text_detect
 else:
      print( "err,text engine in keras\opencv\darknet")
-     
 from text.opencv_dnn_detect import angle_detect
 
 if ocr_redis:
     ##多任务并发识别
     from apphelper.redisbase import redisDataBase
     ocr = redisDataBase().put_values
-else:   
+else:
     from crnn.keys import alphabetChinese,alphabetEnglish
     if ocrFlag=='keras':
         from crnn.network_keras import CRNN
@@ -67,7 +67,6 @@ else:
             ocrModel = ocrModelKerasEng
             alphabet = alphabetEnglish
             LSTMFLAG = True
-            
     elif ocrFlag=='torch':
         from crnn.network_torch import CRNN
         if chineseModel:
@@ -76,7 +75,6 @@ else:
                 ocrModel = ocrModelTorchLstm
             else:
                 ocrModel = ocrModelTorchDense
-                
         else:
             ocrModel = ocrModelTorchEng
             alphabet = alphabetEnglish
@@ -87,8 +85,7 @@ else:
         alphabet = alphabetChinese
     else:
         print( "err,ocr engine in keras\opencv\darknet")
-     
-    nclass = len(alphabet)+1   
+    nclass = len(alphabet)+1
     if ocrFlag=='opencv':
         crnn = CRNN(alphabet=alphabet)
     else:
@@ -97,14 +94,10 @@ else:
         crnn.load_weights(ocrModel)
     else:
         print("download model or tranform model with tools!")
-        
     ocr = crnn.predict_job
-    
-   
 from main import TextOcrModel
 
 model =  TextOcrModel(ocr,text_detect,angle_detect)
-    
 
 billList = ['通用OCR','火车票','身份证']
 
@@ -125,17 +118,14 @@ class OCR:
         t = time.time()
         data = web.data()
         uidJob = uuid.uuid1().__str__()
-        
         data = json.loads(data)
         billModel = data.get('billModel','')
         textAngle = data.get('textAngle',False)##文字检测
         textLine = data.get('textLine',False)##只进行单行识别
-        
         imgString = data['imgString'].encode().split(b';base64,')[-1]
         img = base64_to_PIL(imgString)
         if img is not None:
             img = np.array(img)
-            
         H,W = img.shape[:2]
 
         while time.time()-t<=TIMEOUT:
@@ -144,7 +134,6 @@ class OCR:
             else:
                 with open(filelock,'w') as f:
                     f.write(uidJob)
-                                                
                 if textLine:
                     ##单行识别
                     partImg = Image.fromarray(img)
@@ -152,7 +141,6 @@ class OCR:
                     res =[ {'text':text,'name':'0','box':[0,0,W,0,W,H,0,H]} ]
                     os.remove(filelock)
                     break
-                        
                 else:
                     detectAngle = textAngle
                     result,angle= model.model(img,
@@ -169,9 +157,6 @@ class OCR:
                                                 leftAdjustAlph=0.01,##对检测的文本行进行向左延伸
                                                 rightAdjustAlph=0.01,##对检测的文本行进行向右延伸
                                                )
-        
-        
-        
                     if billModel=='' or billModel=='通用OCR' :
                         result = union_rbox(result,0.2)
                         res = [{'text':x['text'],
@@ -181,30 +166,21 @@ class OCR:
                                        'w':x['w'],
                                        'h':x['h'],
                                        'angle':x['degree']
-        
                                       }
                                } for i,x in enumerate(result)]
                         res = adjust_box_to_origin(img,angle, res)##修正box
-        
                     elif billModel=='火车票':
                         res = trainTicket.trainTicket(result)
                         res = res.res
                         res =[ {'text':res[key],'name':key,'box':{}} for key in res]
-        
                     elif billModel=='身份证':
-        
                         res = idcard.idcard(result)
                         res = res.res
                         res =[ {'text':res[key],'name':key,'box':{}} for key in res]
-                        
                     os.remove(filelock)
                     break
-            
-        
         timeTake = time.time()-t
-         
         return json.dumps({'res':res,'timeTake':round(timeTake,4)},ensure_ascii=False)
-        
 
 urls = ('/ocr','OCR',)
 

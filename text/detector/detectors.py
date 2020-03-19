@@ -22,8 +22,7 @@ class TextDetector:
         pass
         """
         self.text_proposal_connector=TextProposalConnector(MAX_HORIZONTAL_GAP,MIN_V_OVERLAPS,MIN_SIZE_SIM)
-            
-        
+
     def detect(self, text_proposals,scores,size,
                TEXT_PROPOSALS_MIN_SCORE=0.7,
                TEXT_PROPOSALS_NMS_THRESH=0.3,
@@ -37,10 +36,9 @@ class TextDetector:
         @@param:TEXT_PROPOSALS_NMS_THRESH:TEXT_PROPOSALS_NMS_THRESH=0.3##nms过滤重复字符box
         @@param:TEXT_LINE_NMS_THRESH:TEXT_LINE_NMS_THRESH=0.3##nms过滤行文本重复过滤阀值
         @@param:LINE_MIN_SCORE:##行文本置信度
-        
         """
         #text_proposals, scores=self.text_proposal_detector.detect(im, cfg.MEAN)
-        keep_inds=np.where(scores>TEXT_PROPOSALS_MIN_SCORE)[0]### 
+        keep_inds=np.where(scores>TEXT_PROPOSALS_MIN_SCORE)[0]###
         text_proposals, scores=text_proposals[keep_inds], scores[keep_inds]
         sorted_indices=np.argsort(scores.ravel())[::-1]
         text_proposals, scores=text_proposals[sorted_indices], scores[sorted_indices]
@@ -48,11 +46,10 @@ class TextDetector:
         # nms for text proposals
         if len(text_proposals)>0:
             text_proposals, scores = nms(text_proposals,scores,TEXT_PROPOSALS_MIN_SCORE,TEXT_PROPOSALS_NMS_THRESH)
-            scores=normalize(scores)            
+            scores=normalize(scores)
             text_lines,scores = self.text_proposal_connector.get_text_lines(text_proposals, scores, size)##合并文本行
             text_lines = get_boxes(text_lines)
             text_lines, scores = rotate_nms(text_lines,scores,LINE_MIN_SCORE,TEXT_LINE_NMS_THRESH)
-            
             return text_lines,scores
         else:
             return []

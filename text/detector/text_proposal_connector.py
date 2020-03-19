@@ -25,22 +25,18 @@ class TextProposalConnector:
     def get_text_lines(self, text_proposals, scores, im_size):
         """
         text_proposals:boxes
-        
         """
         # tp=text proposal
-        tp_groups=self.group_text_proposals(text_proposals, scores, im_size)##find the text line 
-        
+        tp_groups=self.group_text_proposals(text_proposals, scores, im_size)##find the text line
         text_lines=np.zeros((len(tp_groups), 8), np.float32)
         newscores =np.zeros((len(tp_groups), ), np.float32)
         for index, tp_indices in enumerate(tp_groups):
             text_line_boxes=text_proposals[list(tp_indices)]
-            #num = np.size(text_line_boxes)##find 
+            #num = np.size(text_line_boxes)##find
             X = (text_line_boxes[:,0] + text_line_boxes[:,2]) / 2
             Y = (text_line_boxes[:,1] + text_line_boxes[:,3]) / 2
-            
             z1 = np.polyfit(X,Y,1)
            # p1 = np.poly1d(z1)
-
 
             x0=np.min(text_line_boxes[:, 0])
             x1=np.max(text_line_boxes[:, 2])
@@ -64,7 +60,6 @@ class TextProposalConnector:
             height = np.mean( (text_line_boxes[:,3]-text_line_boxes[:,1]) )
             text_lines[index, 7]= height + 2.5
             newscores[index] = score
-
 
 
         return text_lines,newscores
