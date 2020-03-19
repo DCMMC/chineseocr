@@ -127,7 +127,7 @@ ADD CFLAGS and LDFLAGS to Makefile in darknet:
 
 ```
 # Add this to ARCH, for 2080 Ti whose capability is 7.5
--gencode arch=compute_75,code=[sm_75,compute_75]
+ARCH= -gencode arch=compute_75,code=[sm_75,compute_75]
 
 # fix in anaconda env
 CFLAGS+= -isystem /data/xiaowentao/.anaconda3/include
@@ -145,3 +145,15 @@ nvcc fatal   : A single input file is required for a non-link phase when an outp
 ```
 
 Maybe you can check is there is any non-ascii character... e.g. '-' instead of '–'.
+
+Note that darknet failed with 'CUDA Error: invalid device symbol' when I used CUDA 10.1 installed from anaconda and 2080 Ti.
+Downgrade CUDA to 10.0 fixed this error.
+
+```
+conda install cudatoolkit==10.0.130 -c anaconda
+# provide nvcc
+conda install cudatoolkit-dev==10.0 -c conda-forge
+conda install opencv -c conda-forge
+# ensure pkg-config --libs opencv work correctly
+conda install pkgconfig -c anaconda
+```
