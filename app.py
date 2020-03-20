@@ -60,7 +60,6 @@ if ocr_redis:
     ocr = redisDataBase().put_values
 else:
     from crnn.keys import alphabetChinese,alphabetEnglish
-    print('prepare crnn')
     if ocrFlag=='keras':
         from crnn.network_keras import CRNN
         if chineseModel:

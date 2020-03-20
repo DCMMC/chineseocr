@@ -10,11 +10,10 @@ import torch.nn as nn
 import torch
 from collections import OrderedDict
 from torch.autograd import Variable
-from crnn.util import resizeNormalize ,strLabelConverter
+from crnn.util import resizeNormalize, strLabelConverter, index_to_str
 from config import GPUID
 
 class BidirectionalLSTM(nn.Module):
-    
     def __init__(self, nIn, nHidden, nOut):
         super(BidirectionalLSTM, self).__init__()
         self.rnn = nn.LSTM(nIn, nHidden, bidirectional=True)
@@ -82,13 +81,12 @@ class CRNN(nn.Module):
                 BidirectionalLSTM(nh, nh, nclass))
         else:
             self.linear = nn.Linear(nh*2, nclass)
-            
 
     def forward(self, input):
         # conv features
         conv = self.cnn(input)
         b, c, h, w = conv.size()
-        
+
         assert h == 1, "the height of conv must be 1"
         conv = conv.squeeze(2)
         conv = conv.permute(2, 0, 1)  # [w, b, c]
@@ -97,18 +95,14 @@ class CRNN(nn.Module):
            output = self.rnn(conv)
            T, b, h = output.size()
            output = output.view(T, b, -1)
-           
         else:
              T, b, h = conv.size()
              t_rec = conv.contiguous().view(T * b, h)
              output = self.linear(t_rec)  # [T * b, nOut]
              output = output.view(T, b, -1)
-             
-             
         return output
-    
+
     def load_weights(self,path):
-        
         trainWeights = torch.load(path,map_location=lambda storage, loc: storage)
         modelWeights = OrderedDict()
         for k, v in trainWeights.items():
@@ -130,22 +124,27 @@ class CRNN(nn.Module):
         image       = image.view(1,1, *image.size())
         image       = Variable(image)
         preds       = self(image)
+        # B * T * 4, debug by DCMMC
+        _, topk_res = preds.transpose(1, 0).topk(k=4, dim=2)
+        topk_res = index_to_str(topk_res, self.alphabet)
         _, preds    = preds.max(2)
+        # B * T where B = 1
         preds       = preds.transpose(1, 0).contiguous().view(-1)
-        raw         = strLabelConverter(preds,self.alphabet)
-        return raw
+        raw         = strLabelConverter(preds, self.alphabet)
+        return raw, topk_res
 
     def predict_job(self,boxes):
         n = len(boxes)
         for i in range(n):
-            boxes[i]['text'] = self.predict(boxes[i]['img'])
+            res = self.predict(boxes[i]['img'])
+            boxes[i]['text'] = res[0]
+            boxes[i]['raw res'] = res[1]
         return boxes
 
     def predict_batch(self,boxes,batch_size=1):
         """
         predict on batch
         """
-
         N = len(boxes)
         res = []
         imgW = 0
@@ -162,37 +161,23 @@ class CRNN(nn.Module):
                 h,w = image.shape[:2]
                 imgW = max(imgW,w)
                 imageBatch.append(np.array([image]))
-                
             imageArray = np.zeros((len(imageBatch),1,32,imgW),dtype=np.float32)
             n = len(imageArray)
             for j in range(n):
                 _,h,w = imageBatch[j].shape
                 imageArray[j][:,:,:w] = imageBatch[j]
-            
             image = torch.from_numpy(imageArray)
             image = Variable(image)
             if torch.cuda.is_available() and self.GPU:
                 image   = image.cuda()
             else:
                 image   = image.cpu()
-                
             preds       = self(image)
             preds       = preds.argmax(2)
             n = preds.shape[1]
             for j in range(n):
                 res.append(strLabelConverter(preds[:,j],self.alphabet))
 
-              
         for i in range(N):
             boxes[i]['text'] = res[i]
         return boxes
-            
-        
-            
-            
-        
-            
-        
-        
-        
-        
