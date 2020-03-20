@@ -67,5 +67,3 @@ if __name__ == '__main__':
         for k in res:
             print(k, ':\t', res[k])
         print('-'*70)
-
-    os.
