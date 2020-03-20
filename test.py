@@ -3,21 +3,19 @@
 @author DCMMC
 '''
 import os
-GPUID = 1
-os.environ["CUDA_VISIBLE_DEVICES"] = str(GPUID)
-
 from config import IMGSIZE, chineseModel
 import sys
 from PIL import Image
 from main import TextOcrModel
 from text.darknet_detect import text_detect
+from config import ocrModelTorchLstm as ocrModel
+from crnn.network_torch import CRNN
+import numpy as np
+from time import time
 if chineseModel:
     from crnn.keys import alphabetChinese as alphabet
 else:
     from crnn.keys import alphabetEnglish as alphabet
-from config import ocrModelTorchLstm as ocrModel
-from crnn.network_torch import CRNN
-import numpy as np
 
 GPU = True
 LSTMFLAG = True
@@ -45,6 +43,8 @@ if __name__ == '__main__':
     billList = ['通用OCR', '火车票', '身份证']
 
     detectAngle = False
+    start_t = time()
+
     result, angle = model.model(
         img,
         scale=scale,
@@ -61,7 +61,11 @@ if __name__ == '__main__':
         rightAdjustAlph=0.01,  ##对检测的文本行进行向右延伸
     )
 
+    print('Finished after {}s'.format(time() - start_t))
+
     for res in result:
         for k in res:
             print(k, ':\t', res[k])
         print('-'*70)
+
+    os.

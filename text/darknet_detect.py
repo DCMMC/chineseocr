@@ -56,12 +56,13 @@ if GPU:
       dn.set_gpu(GPUID)
     except:
         pass
-    
+
 net = dn.load_net(yoloCfg.encode('utf-8'), yoloWeights.encode('utf-8'), 0)
 meta = dn.load_meta(yoloData.encode('utf-8'))
 os.chdir(pwd)
+
+
 def text_detect(img,scale,maxScale,prob = 0.05):
-    
     r = detect_np(net, meta, img,thresh=prob, hier_thresh=0.5, nms=None)##输出所有box,与opencv dnn统一
     bboxes = to_box(r)
     return bboxes
