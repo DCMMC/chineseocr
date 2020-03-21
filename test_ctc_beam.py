@@ -5,106 +5,40 @@
 # 
 
 # In[1]:
-
-
 import os
-import json
-import time
-# import web
-import numpy as np
+from config import IMGSIZE, chineseModel
+import sys
 from PIL import Image
-from config import *
-from apphelper.image import union_rbox,adjust_box_to_origin,base64_to_PIL
-from application import trainTicket,idcard 
-if yoloTextFlag =='keras' or AngleModelFlag=='tf' or ocrFlag=='keras':
-    if GPU:
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(GPUID)
-        import tensorflow as tf
-        from keras import backend as K
-        config = tf.ConfigProto()
-        config.gpu_options.allocator_type = 'BFC'
-        config.gpu_options.per_process_gpu_memory_fraction = 0.3## GPU最大占用量
-        config.gpu_options.allow_growth = True##GPU是否可动态增加
-        K.set_session(tf.Session(config=config))
-        K.get_session().run(tf.global_variables_initializer())
-    
-    else:
-      ##CPU启动
-      os.environ["CUDA_VISIBLE_DEVICES"] = ''
-
-if yoloTextFlag=='opencv':
-    scale,maxScale = IMGSIZE
-    from text.opencv_dnn_detect import text_detect
-elif yoloTextFlag=='darknet':
-    scale,maxScale = IMGSIZE
-    from text.darknet_detect import text_detect
-elif yoloTextFlag=='keras':
-    scale,maxScale = IMGSIZE[0],2048
-    from text.keras_detect import  text_detect
-else:
-     print( "err,text engine in keras\opencv\darknet")
-     
-if DETECTANGLE:
-    from text.opencv_dnn_detect import angle_detect
-else:
-    angle_detect = None
-
-if ocr_redis:
-    ##多任务并发识别
-    from helper.redisbase import redisDataBase
-    ocr = redisDataBase().put_values
-else:   
-    from crnn.keys import alphabetChinese,alphabetEnglish
-    if ocrFlag=='keras':
-        from crnn.network_keras import CRNN
-        if chineseModel:
-            alphabet = alphabetChinese
-            if LSTMFLAG:
-                ocrModel = ocrModelKerasLstm
-            else:
-                ocrModel = ocrModelKerasDense
-        else:
-            ocrModel = ocrModelKerasEng
-            alphabet = alphabetEnglish
-            LSTMFLAG = True
-            
-    elif ocrFlag=='torch':
-        from crnn.network_torch import CRNN
-        if chineseModel:
-            alphabet = alphabetChinese
-            if LSTMFLAG:
-                ocrModel = ocrModelTorchLstm
-            else:
-                ocrModel = ocrModelTorchDense
-                
-        else:
-            ocrModel = ocrModelTorchEng
-            alphabet = alphabetEnglish
-            LSTMFLAG = True
-    elif ocrFlag=='opencv':
-        from crnn.network_dnn import CRNN
-        ocrModel = ocrModelOpencv
-        alphabet = alphabetChinese
-    else:
-        print( "err,ocr engine in keras\opencv\darknet")
-     
-    nclass = len(alphabet)+1   
-    if ocrFlag=='opencv':
-        crnn = CRNN(alphabet=alphabet)
-    else:
-        crnn = CRNN( 32, 1, nclass, 256, leakyRelu=False,lstmFlag=LSTMFLAG,GPU=GPU,alphabet=alphabet)
-    if os.path.exists(ocrModel):
-        crnn.load_weights(ocrModel)
-    else:
-        print("download model or tranform model with tools!")
-        
-    ocr = crnn.predict_job
-    
-   
 from main import TextOcrModel
-
-model =  TextOcrModel(ocr,text_detect,angle_detect)
+from text.darknet_detect import text_detect
+from config import ocrModelTorchLstm as ocrModel
+from crnn.network_torch import CRNN
+import numpy as np
+from time import time
 from apphelper.image import xy_rotate_box,box_rotate,solve
+if chineseModel:
+    from crnn.keys import alphabetChinese as alphabet
+else:
+    from crnn.keys import alphabetEnglish as alphabet
+
+GPU = True
+LSTMFLAG = True
+nclass = len(alphabet) + 1
+scale, maxScale = IMGSIZE
+
+crnn = CRNN(
+    32,
+    1,
+    nclass,
+    256,
+    leakyRelu=False,
+    lstmFlag=LSTMFLAG,
+    GPU=GPU,
+    alphabet=alphabet)
+crnn.load_weights(ocrModel)
+ocr = crnn.predict_job
+
+model = TextOcrModel(ocr, text_detect, None)
 
 
 # In[2]:
@@ -332,6 +266,8 @@ scorer = Scorer(alpha=0, beta=0, model_path='./models/zh_giga.no_cna_cmn.prune01
 
 import time
 from PIL import Image
+from torch.nn.functional import softmax 
+
 p = './test/HW1.PNG'
 img = cv2.imread(p)
 
@@ -361,18 +297,18 @@ print('It take:{}s'.format(timeTake))
 for line in result:
     print(line['text'], flush=True)
     print(line['raw res'], flush=True)
-    print(line['raw preds'].shape, flush=True)
-    print(line['raw preds'][0, :4, :3])
-    print('pred labels:', line['raw preds'].max(2)[1].view(-1))
+#     print(line['raw preds'].shape, flush=True)
+#     print(line['raw preds'][:, :5, :].topk(k=4, dim=2))
+#     print('pred labels:', line['raw preds'].max(2)[1].view(-1))
     beam_search_results = ctc_beam_search_decoder_batch(
-            probs_split=line['raw preds'],
+            probs_split=softmax(line['raw preds'], dim=2),
             vocabulary=alphabet_list,
-            beam_size=1,
+            beam_size=50,
             num_processes=1,
-            ext_scoring_func=None,
+            ext_scoring_func=scorer,
             cutoff_prob=1.0,
             cutoff_top_n=50)
-    print(beam_search_results, flush=True)
+    print(beam_search_results[0][:4], flush=True)
 plot_boxes(img,angle, result,color=(0,0,0))
 
 

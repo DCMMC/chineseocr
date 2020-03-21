@@ -163,3 +163,11 @@ For installing swig decoder:
 ```
 conda install boost -c anaconda && bash setup.sh && pip install .
 ```
+
+debug:
+
+```
+conda install gdb -c conda-forge
+export PYTHONPATH=`pwd`:$PYTHONPATH
+gdb -x test_ctc_beam.py
+```
