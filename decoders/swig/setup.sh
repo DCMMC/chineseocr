@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 if [ ! -d kenlm ]; then
-    git clone https://github.com/luotao1/kenlm.git
+    git clone --depth=1 https://github.com/luotao1/kenlm.git
     echo -e "\n"
 fi
 
@@ -13,7 +13,7 @@ if [ ! -d openfst-1.6.3 ]; then
 fi
 
 if [ ! -d ThreadPool ]; then
-    git clone https://github.com/progschj/ThreadPool.git
+    git clone --depth=1 https://github.com/progschj/ThreadPool.git
     echo -e "\n"
 fi
 

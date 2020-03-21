@@ -56,7 +56,7 @@ std::vector<std::pair<double, std::string>> ctc_beam_search_decoder(
   root.score = root.log_prob_b_prev = 0.0;
   std::vector<PathTrie *> prefixes;
   prefixes.push_back(&root);
-    
+
   std::cout << "prefixed initialized!" << std::endl;
 
   if (ext_scorer != nullptr && !ext_scorer->is_character_based()) {
@@ -66,7 +66,7 @@ std::vector<std::pair<double, std::string>> ctc_beam_search_decoder(
     auto matcher = std::make_shared<FSTMATCH>(*dict_ptr, fst::MATCH_INPUT);
     root.set_matcher(matcher);
   }
-    
+
   std::cout << "Start prefix search over time" << std::endl;
 
   // prefix search over time
@@ -90,7 +90,11 @@ std::vector<std::pair<double, std::string>> ctc_beam_search_decoder(
 
     std::vector<std::pair<size_t, float>> log_prob_idx =
         get_pruned_log_probs(prob, cutoff_prob, cutoff_top_n);
-    
+
+    std::cout << "top 3 prob: (" << log_prob_idx[0][0] << ", " << log_prob_idx[0][1]
+        << "), (" << log_prob_idx[1][0] << ", " << log_prob_idx[1][1] << "), ("
+        << log_prob_idx[2][0] << ", " << log_prob_idx[2][1] << ")." << std::endl;
+
     std::cout << "Start loop over chars" << std::endl;
     // loop over chars
     for (size_t index = 0; index < log_prob_idx.size(); index++) {
@@ -149,7 +153,7 @@ std::vector<std::pair<double, std::string>> ctc_beam_search_decoder(
         }
       }  // end of loop over prefix
     }    // end of loop over vocabulary
-      
+
     prefixes.clear();
     // update log probs
     root.iterate_to_vec(prefixes);
@@ -164,7 +168,12 @@ std::vector<std::pair<double, std::string>> ctc_beam_search_decoder(
         prefixes[i]->remove();
       }
     }
-    std::cout << "best beam: " << prefixes[0]->character << " (" << vocabulary[prefixes[0]->character - 1]
+
+    auto max_prefix = std::max(prefixes, [](auto & s1, auto & s2) {
+            return s1.score < s2.score;
+            });
+    std::cout << "best beam: " << max_prefix->character << " ("
+        << vocabulary[max_prefix->character - 1]
         << ")." << std::endl;
     elapsed = std::chrono::high_resolution_clock::now() - start_voca;
     seconds = 0.000001 * std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
