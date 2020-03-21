@@ -257,7 +257,7 @@ def ctc_beam_search_decoder_batch(probs_split,
 
 
 alphabet_list = [c for c in alphabet]
-scorer = Scorer(alpha=0, beta=0, model_path='./models/zh_giga.no_cna_cmn.prune01244.klm',
+scorer = Scorer(alpha=2.5, beta=0.3, model_path='./models/zh_giga.no_cna_cmn.prune01244.klm',
                 vocabulary=alphabet_list)
 
 
