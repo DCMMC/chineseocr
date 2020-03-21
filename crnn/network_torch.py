@@ -127,18 +127,20 @@ class CRNN(nn.Module):
         # B * T * 4, debug by DCMMC
         _, topk_res = preds.transpose(1, 0).topk(k=4, dim=2)
         topk_res = index_to_str(topk_res, self.alphabet)
-        _, preds    = preds.max(2)
+        _, preds_logit    = preds.max(2)
         # B * T where B = 1
-        preds       = preds.transpose(1, 0).contiguous().view(-1)
-        raw         = strLabelConverter(preds, self.alphabet)
-        return raw, topk_res
+        preds_logit       = preds_logit.transpose(1, 0).contiguous().view(-1)
+        raw         = strLabelConverter(preds_logit, self.alphabet)
+        return raw, topk_res, preds.transpose(1, 0)
 
     def predict_job(self,boxes):
         n = len(boxes)
         for i in range(n):
             res = self.predict(boxes[i]['img'])
             boxes[i]['text'] = res[0]
+            # DCMCM: for debugging
             boxes[i]['raw res'] = res[1]
+            boxes[i]['raw preds'] = res[2]
         return boxes
 
     def predict_batch(self,boxes,batch_size=1):

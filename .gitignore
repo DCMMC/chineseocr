@@ -9,9 +9,9 @@
 *.pbtxt
 *.weights
 models/text.weights
+models/zh_giga.no_cna_cmn.prune01244.klm
 dist
 buil
 .DS_Store*
 .ipynb_checkpoints
 __pycache__
-darknet

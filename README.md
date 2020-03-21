@@ -157,3 +157,9 @@ conda install opencv -c conda-forge
 # ensure pkg-config --libs opencv work correctly
 conda install pkgconfig -c anaconda
 ```
+
+For installing swig decoder:
+
+```
+conda install boost -c anaconda && bash setup.sh && pip install .
+```
