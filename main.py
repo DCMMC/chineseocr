@@ -69,7 +69,8 @@ class TextOcrModel(object):
                                 )
         return boxes,scores
 
-    def ocr_batch(self,img,boxes,leftAdjustAlph=0.0,rightAdjustAlph=0.0):
+    def ocr_batch(self,img,boxes,leftAdjustAlph=0.0,
+                  rightAdjustAlph=0.0, print_summary=False):
         """
         batch for ocr
         """
@@ -81,7 +82,7 @@ class TextOcrModel(object):
             newBoxes.append(box)
         # print('*'*70, '\nDEBUG: newBoxes:', [b['img'].size for b in newBoxes])
         assert all([b['img'].size[0] * b['img'].size[1] > 0 for b in newBoxes])
-        res = self.ocrModel(newBoxes)
+        res = self.ocrModel(newBoxes, print_summary=print_summary)
         return res
 
     def model(self,img,**args):
@@ -100,5 +101,7 @@ class TextOcrModel(object):
         boxes              = sort_box(boxes)
         leftAdjustAlph     = args.get('leftAdjustAlph',0)
         rightAdjustAlph    = args.get('rightAdjustAlph',0)
-        res                = self.ocr_batch(img,boxes,leftAdjustAlph,rightAdjustAlph)
+        print_summary = args.get('print_summary', False)
+        res                = self.ocr_batch(img,boxes,leftAdjustAlph,rightAdjustAlph,
+                                            print_summary=print_summary)
         return res,angle

@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
+'''
 torch ocr model
 @author: chineseocr
-"""
+'''
 import numpy as np
 import torch.nn as nn
 import torch
 from collections import OrderedDict
 from torch.autograd import Variable
 from crnn.util import resizeNormalize, strLabelConverter, index_to_str
+from torchsummary import summary
 
 
 class BidirectionalLSTM(nn.Module):
@@ -141,11 +142,14 @@ class CRNN(nn.Module):
         raw = strLabelConverter(preds_logit, self.alphabet)
         return raw, topk_res, preds.transpose(1, 0)
 
-    def predict_job(self, boxes):
+    def predict_job(self, boxes, print_summary=False):
         n = len(boxes)
+        if print_summary:
+            summary(self, input_size=(1, 32, 128))
         for i in range(n):
             res_new = boxes[i]['img']
-            if res_new.shape[1] < 16:
+            # PIL image object
+            if res_new.size[1] < 16:
                 boxes[i]['text'] = ''
                 boxes[i]['raw res'] = ''
                 boxes[i]['raw preds'] = []
