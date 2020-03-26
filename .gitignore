@@ -16,3 +16,4 @@ buil
 .ipynb_checkpoints
 __pycache__
 debug.txt
+dataset/*
