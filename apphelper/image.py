@@ -207,7 +207,7 @@ def get_rorate(boxes, im, degree=0):
         x3, y3 = rotate(x3, y3, -degree/180*np.pi, cx0, cy0)
         x4, y4 = rotate(x4, y4, -degree/180*np.pi, cx0, cy0)
         box = (x1, y1, x2, y2, x3, y3, x4, y4)
-        degree_, w_, h_, cx_, cy_ = solve(box)
+        degree_, w_, h_, cx_, cy_ = solve(box)[:5]
         newLine = {'angle': degree_, 'w': w_, 'h': h_, 'cx': cx_, 'cy': cy_}
         newBoxes.append(newLine)
     return im.rotate(degree, center=(imgW/2.0, imgH/2.0)), newBoxes
@@ -426,7 +426,7 @@ def union_rbox(result, alpha=0.1):
         y3 = box4[:, 5].max()
         x4 = box4[:, 6].min()
         y4 = box4[:, 7].max()
-        angle, w, h, cx, cy = solve([x1, y1, x2, y2, x3, y3, x4, y4])
+        angle, w, h, cx, cy = solve([x1, y1, x2, y2, x3, y3, x4, y4])[:5]
         return {'text': text, 'cx': cx, 'cy': cy, 'w': w, 'h': h, 'degree': angle/np.pi*180}
 
     newBox = []
