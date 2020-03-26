@@ -18,9 +18,14 @@ if os.path.exists(filelock):
    os.remove(filelock)
 
 render = web.template.render('templates', base='base')
-from config import *
-from apphelper.image import union_rbox,adjust_box_to_origin,base64_to_PIL
-from application import trainTicket,idcard
+from config import GPU, alphabet, AngleModelFlag, yoloTextFlag, ocrFlag
+from config import GPUID, IMGSIZE, DETECTANGLE, ocr_redis
+from config import chineseModel, LSTMFLAG, ocrModelOpencv
+from config import ocrModelKerasDense, ocrModelKerasEng, ocrModelKerasLstm
+from config import ocrModelTorchDense, ocrModelTorchEng, ocrModelTorchLstm
+from config import TIMEOUT
+from apphelper.image import union_rbox, adjust_box_to_origin, base64_to_PIL
+from application import trainTicket, idcard
 if yoloTextFlag =='keras' or AngleModelFlag=='tf' or ocrFlag=='keras':
     if GPU:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(GPUID)
@@ -91,10 +96,11 @@ else:
     else:
         print( "err,ocr engine in keras\opencv\darknet")
     nclass = len(alphabet)+1
-    if ocrFlag=='opencv':
+    if ocrFlag == 'opencv':
         crnn = CRNN(alphabet=alphabet)
     else:
-        crnn = CRNN( 32, 1, nclass, 256, leakyRelu=False,lstmFlag=LSTMFLAG,GPU=GPU,alphabet=alphabet)
+        crnn = CRNN(32, 1, nclass, 256, leakyRelu=False, lstmFlag=LSTMFLAG,
+                    GPU=GPU, alphabet=alphabet)
     if os.path.exists(ocrModel):
         crnn.load_weights(ocrModel)
     else:

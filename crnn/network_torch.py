@@ -46,6 +46,7 @@ class CRNN(nn.Module):
         ks = [3, 3, 3, 3, 3, 3, 2]
         ps = [1, 1, 1, 1, 1, 1, 0]
         ss = [1, 1, 1, 1, 1, 1, 1]
+        # number of channels in each layer
         nm = [64, 128, 256, 256, 512, 512, 512]
         self.lstmFlag = lstmFlag
         self.GPU = GPU
@@ -80,10 +81,12 @@ class CRNN(nn.Module):
         convRelu(6, True)  # 512x1x16
         self.cnn = cnn
         if self.lstmFlag:
+            # two-layer LSTM: 512-d to nClass-d
             self.rnn = nn.Sequential(
                 BidirectionalLSTM(512, nh, nh),
                 BidirectionalLSTM(nh, nh, nclass))
         else:
+            # nh * 2 masu equal to 512
             self.linear = nn.Linear(nh * 2, nclass)
 
     def forward(self, input):
