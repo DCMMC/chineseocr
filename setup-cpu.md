@@ -6,6 +6,8 @@ pip install easydict opencv-contrib-python==4.0.0.21 Cython h5py lmdb mahotas pa
 pip install -U pillow -i https://pypi.tuna.tsinghua.edu.cn/simple/
 pip install web.py==0.40.dev0 redis
 pip install keras==2.1.5 tensorflow==1.8
+# 编辑距离
+pip install python-levenshtein
 ## mac
 conda install pytorch torchvision -c pytorch
 ## linux

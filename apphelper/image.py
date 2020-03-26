@@ -64,7 +64,7 @@ def solve(box):
     diff = [[abs(location[i][0] - location[(i+1)%4][0]), abs(location[i][1] - location[(i+1)%4][1])] for i in range(4)]
     w, h = max(diff, key=lambda x: x[0])[0], max(diff, key=lambda x: x[1])[1]
 #     print('w, h:', w, h)
-    fix_angle_reverse = False
+    vertical_text = False
     if h <= 1.8 * w:
 #         print('横排文字')
         # 这时候我认为是横排文字
@@ -116,8 +116,8 @@ def solve(box):
         if w_ == 0:
             w_ = w
         # 修正竖排文字的角度为负方向
-        fix_angle_reverse = True
-    # 全部扩大 2 倍会不会有助于避免旋转修正后丢失更多文本图像？    
+        vertical_text = True
+    # 全部扩大 2 倍会不会有助于避免旋转修正后丢失更多文本图像？
     if w_ < 40:
 #         print('scaling for small w')
         w_ *= 1.5
@@ -128,7 +128,7 @@ def solve(box):
     if (location[1][0] - location[0][0]) != 0:
         tanA = (location[1][1] - location[0][1]) / \
             (location[1][0] - location[0][0])
-        if fix_angle_reverse:
+        if vertical_text:
             tanA *= -1
     else:
 #         print('Unexpected location when solve the box')
@@ -140,7 +140,7 @@ def solve(box):
 #     if abs(angle) < 5:
 #         print('disable angle fix for small angle')
 #         angle = 0.
-    return angle, w_, h_, cx, cy
+    return angle, w_, h_, cx, cy, vertical_text
 
 
 def xy_rotate_box(cx, cy, w, h, angle):
@@ -261,7 +261,7 @@ def box_rotate(box, angle=0, imgH=0, imgW=0):
 
 
 def rotate_cut_img(im, box, leftAdjustAlph=0.0, rightAdjustAlph=0.0):
-    angle, w, h, cx, cy = solve(box)
+    angle, w, h, cx, cy, vertical_text = solve(box)
     degree_ = angle*180.0/np.pi
 
     box = (max(1, cx-w/2-leftAdjustAlph*(w/2))  # xmin
@@ -273,7 +273,7 @@ def rotate_cut_img(im, box, leftAdjustAlph=0.0, rightAdjustAlph=0.0):
     newH = box[3]-box[1]
     tmpImg = im.rotate(degree_, center=(cx, cy)).crop(box)
     box = {'cx': cx, 'cy': cy, 'w': newW, 'h': newH, 'degree': degree_, }
-    return tmpImg, box
+    return tmpImg, box, vertical_text
 
 
 def estimate_skew_angle(raw):

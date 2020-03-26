@@ -5,13 +5,12 @@ torch ocr model
 @author: chineseocr
 """
 import numpy as np
-from PIL import Image
 import torch.nn as nn
 import torch
 from collections import OrderedDict
 from torch.autograd import Variable
 from crnn.util import resizeNormalize, strLabelConverter, index_to_str
-from config import GPUID
+
 
 class BidirectionalLSTM(nn.Module):
     def __init__(self, nIn, nHidden, nOut):
@@ -26,12 +25,18 @@ class BidirectionalLSTM(nn.Module):
         output = self.embedding(t_rec)  # [T * b, nOut]
         output = output.view(T, b, -1)
         return output
-    
 
 
 class CRNN(nn.Module):
-
-    def __init__(self, imgH, nc, nclass, nh, leakyRelu=False,lstmFlag=True,GPU=False,alphabet=None):
+    def __init__(self,
+                 imgH,
+                 nc,
+                 nclass,
+                 nh,
+                 leakyRelu=False,
+                 lstmFlag=True,
+                 GPU=False,
+                 alphabet=None):
         """
         是否加入lstm特征层
         """
@@ -73,14 +78,13 @@ class CRNN(nn.Module):
         cnn.add_module('pooling{0}'.format(3),
                        nn.MaxPool2d((2, 2), (2, 1), (0, 1)))  # 512x2x16
         convRelu(6, True)  # 512x1x16
-        
         self.cnn = cnn
         if self.lstmFlag:
             self.rnn = nn.Sequential(
                 BidirectionalLSTM(512, nh, nh),
                 BidirectionalLSTM(nh, nh, nclass))
         else:
-            self.linear = nn.Linear(nh*2, nclass)
+            self.linear = nn.Linear(nh * 2, nclass)
 
     def forward(self, input):
         # conv features
@@ -91,49 +95,50 @@ class CRNN(nn.Module):
         conv = conv.squeeze(2)
         conv = conv.permute(2, 0, 1)  # [w, b, c]
         if self.lstmFlag:
-           # rnn features
-           output = self.rnn(conv)
-           T, b, h = output.size()
-           output = output.view(T, b, -1)
+            # rnn features
+            output = self.rnn(conv)
+            T, b, h = output.size()
+            output = output.view(T, b, -1)
         else:
-             T, b, h = conv.size()
-             t_rec = conv.contiguous().view(T * b, h)
-             output = self.linear(t_rec)  # [T * b, nOut]
-             output = output.view(T, b, -1)
+            T, b, h = conv.size()
+            t_rec = conv.contiguous().view(T * b, h)
+            output = self.linear(t_rec)  # [T * b, nOut]
+            output = output.view(T, b, -1)
         return output
 
-    def load_weights(self,path):
-        trainWeights = torch.load(path,map_location=lambda storage, loc: storage)
+    def load_weights(self, path):
+        trainWeights = torch.load(
+            path, map_location=lambda storage, loc: storage)
         modelWeights = OrderedDict()
         for k, v in trainWeights.items():
-            name = k.replace('module.','') # remove `module.`
-            modelWeights[name] = v      
+            name = k.replace('module.', '')  # remove `module.`
+            modelWeights[name] = v
         self.load_state_dict(modelWeights)
         if torch.cuda.is_available() and self.GPU:
             self.cuda()
         self.eval()
 
-    def predict(self,image):
-        image = resizeNormalize(image,32)
+    def predict(self, image):
+        image = resizeNormalize(image, 32)
         image = image.astype(np.float32)
         image = torch.from_numpy(image)
         if torch.cuda.is_available() and self.GPU:
-           image   = image.cuda()
+            image = image.cuda()
         else:
-           image   = image.cpu()
-        image       = image.view(1,1, *image.size())
-        image       = Variable(image)
-        preds       = self(image)
+            image = image.cpu()
+        image = image.view(1, 1, *image.size())
+        image = Variable(image)
+        preds = self(image)
         # B * T * 4, debug by DCMMC
         _, topk_res = preds.transpose(1, 0).topk(k=4, dim=2)
         topk_res = index_to_str(topk_res, self.alphabet)
-        _, preds_logit    = preds.max(2)
+        _, preds_logit = preds.max(2)
         # B * T where B = 1
-        preds_logit       = preds_logit.transpose(1, 0).contiguous().view(-1)
-        raw         = strLabelConverter(preds_logit, self.alphabet)
+        preds_logit = preds_logit.transpose(1, 0).contiguous().view(-1)
+        raw = strLabelConverter(preds_logit, self.alphabet)
         return raw, topk_res, preds.transpose(1, 0)
 
-    def predict_job(self,boxes):
+    def predict_job(self, boxes):
         n = len(boxes)
         for i in range(n):
             res = self.predict(boxes[i]['img'])
@@ -143,42 +148,46 @@ class CRNN(nn.Module):
             boxes[i]['raw preds'] = res[2]
         return boxes
 
-    def predict_batch(self,boxes,batch_size=1):
+    def predict_batch(self, boxes, batch_size=1):
         """
         predict on batch
         """
         N = len(boxes)
         res = []
         imgW = 0
-        batch = N//batch_size
-        if batch*batch_size!=N:
-            batch+=1
+        batch = N // batch_size
+        if batch * batch_size != N:
+            batch += 1
         for i in range(batch):
-            tmpBoxes = boxes[i*batch_size:(i+1)*batch_size]
-            imageBatch =[]
+            tmpBoxes = boxes[i * batch_size:(i + 1) * batch_size]
+            imageBatch = []
             imgW = 0
             for box in tmpBoxes:
                 img = box['img']
-                image = resizeNormalize(img,32)
-                h,w = image.shape[:2]
-                imgW = max(imgW,w)
+                image = resizeNormalize(img, 32)
+                h, w = image.shape[:2]
+                imgW = max(imgW, w)
                 imageBatch.append(np.array([image]))
-            imageArray = np.zeros((len(imageBatch),1,32,imgW),dtype=np.float32)
+            # (N, C, H, W)
+            imageArray = np.zeros((len(imageBatch), 1, 32, imgW),
+                                  dtype=np.float32)
             n = len(imageArray)
+            # pad 0 to ensure length is imgW
             for j in range(n):
-                _,h,w = imageBatch[j].shape
-                imageArray[j][:,:,:w] = imageBatch[j]
+                _, h, w = imageBatch[j].shape
+                imageArray[j][:, :, :w] = imageBatch[j]
             image = torch.from_numpy(imageArray)
             image = Variable(image)
             if torch.cuda.is_available() and self.GPU:
-                image   = image.cuda()
+                image = image.cuda()
             else:
-                image   = image.cpu()
-            preds       = self(image)
-            preds       = preds.argmax(2)
+                image = image.cpu()
+            # (T, B, nClass)
+            preds = self(image)
+            preds = preds.argmax(2)
             n = preds.shape[1]
             for j in range(n):
-                res.append(strLabelConverter(preds[:,j],self.alphabet))
+                res.append(strLabelConverter(preds[:, j], self.alphabet))
 
         for i in range(N):
             boxes[i]['text'] = res[i]
