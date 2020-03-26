@@ -6,7 +6,7 @@ main
 @author: chineseocr
 """
 from text.detector.detectors import TextDetector
-from apphelper.image import rotate_cut_img,sort_box
+from apphelper.image import rotate_cut_img, sort_box
 import numpy as np
 from PIL import Image
 
@@ -76,7 +76,7 @@ class TextOcrModel(object):
         im = Image.fromarray(img)
         newBoxes = []
         for index,box in enumerate(boxes):
-            partImg,box = rotate_cut_img(im,box,leftAdjustAlph,rightAdjustAlph)
+            partImg, box, _ = rotate_cut_img(im, box, leftAdjustAlph, rightAdjustAlph)
             box['img'] = partImg.convert('L')
             newBoxes.append(box)
         # print('*'*70, '\nDEBUG: newBoxes:', [b['img'].size for b in newBoxes])
