@@ -10,6 +10,7 @@ import torch
 from collections import OrderedDict
 from torch.autograd import Variable
 from crnn.util import resizeNormalize, strLabelConverter, index_to_str
+from torchsummary import summary
 
 
 class BidirectionalLSTM(nn.Module):
@@ -41,6 +42,7 @@ class CRNN(nn.Module):
         是否加入lstm特征层
         """
         super(CRNN, self).__init__()
+        # DCMMC: 说实话，感觉默认的 32 的高，有点太小了
         assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
 
         ks = [3, 3, 3, 3, 3, 3, 2]
@@ -56,6 +58,7 @@ class CRNN(nn.Module):
         def convRelu(i, batchNormalization=False):
             nIn = nc if i == 0 else nm[i - 1]
             nOut = nm[i]
+            # Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=0)
             cnn.add_module('conv{0}'.format(i),
                            nn.Conv2d(nIn, nOut, ks[i], ss[i], ps[i]))
             if batchNormalization:
@@ -66,7 +69,9 @@ class CRNN(nn.Module):
             else:
                 cnn.add_module('relu{0}'.format(i), nn.ReLU(True))
 
+        # assume input's shape is: 1x32x128 (C, H, W)
         convRelu(0)
+        # MaxPool2d(kernel_size, stride=None)
         cnn.add_module('pooling{0}'.format(0), nn.MaxPool2d(2, 2))  # 64x16x64
         convRelu(1)
         cnn.add_module('pooling{0}'.format(1), nn.MaxPool2d(2, 2))  # 128x8x32
@@ -141,8 +146,10 @@ class CRNN(nn.Module):
         raw = strLabelConverter(preds_logit, self.alphabet)
         return raw, topk_res, preds.transpose(1, 0)
 
-    def predict_job(self, boxes):
+    def predict_job(self, boxes, print_summary=False):
         n = len(boxes)
+        if print_summary:
+            summary(self, input_size=(1, 32, 128))
         for i in range(n):
             res = self.predict(boxes[i]['img'])
             boxes[i]['text'] = res[0]

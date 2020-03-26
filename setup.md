@@ -9,3 +9,4 @@ pip install web.py==0.40.dev0      redis
 conda install pytorch torchvision -c pytorch
 # 编辑距离
 pip install python-levenshtein
+pip install torchsummary
