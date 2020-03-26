@@ -5,12 +5,14 @@ from PIL import Image
 
 
 def resizeNormalize(img, imgH=32):
-    # print('*'*70, '\nDEBUG: img size:', img.size)
+#     print('*'*70, '\nDEBUG: img size:', img.size, ', type:', type(img))
     scale = img.size[1] * 1.0 / imgH
     w = img.size[0] / scale
     w = int(w)
     img = img.resize((w, imgH), Image.BILINEAR)
     w, h = img.size
+#     print(np.array(img).size)
+    # PIL 是 W * H 而 np.array 和 Pytorch 都是 H * W 形状，这里 np 会自动转换
     img = (np.array(img) / 255.0 - 0.5) / 0.5
     return img
 

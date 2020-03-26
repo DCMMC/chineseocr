@@ -118,10 +118,10 @@ def solve(box):
         # 修正竖排文字的角度为负方向
         vertical_text = True
     # 全部扩大 2 倍会不会有助于避免旋转修正后丢失更多文本图像？
-    if w_ < 40:
+    if w_ < 10:
 #         print('scaling for small w')
         w_ *= 1.5
-    if h_ < 40:
+    if h_ < 10:
 #         print('scaling for small h')
         h_ *= 1.5
 #     print('location:', location)
