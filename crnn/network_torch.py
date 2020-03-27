@@ -10,7 +10,9 @@ import torch
 from collections import OrderedDict
 from torch.autograd import Variable
 from crnn.util import resizeNormalize, strLabelConverter, index_to_str
+from crnn.util import resiezeNormalizeVerticalText
 from torchsummary import summary
+from time import time
 
 
 class BidirectionalLSTM(nn.Module):
@@ -37,13 +39,16 @@ class CRNN(nn.Module):
                  leakyRelu=False,
                  lstmFlag=True,
                  GPU=False,
-                 alphabet=None):
+                 alphabet=None,
+                 vertical_text=False
+                ):
         """
         是否加入lstm特征层
         """
         super(CRNN, self).__init__()
+        # imgH 在这里完全没用到啊
         assert imgH % 16 == 0, 'imgH has to be a multiple of 16'
-
+        
         ks = [3, 3, 3, 3, 3, 3, 2]
         ps = [1, 1, 1, 1, 1, 1, 0]
         ss = [1, 1, 1, 1, 1, 1, 1]
@@ -52,6 +57,7 @@ class CRNN(nn.Module):
         self.lstmFlag = lstmFlag
         self.GPU = GPU
         self.alphabet = alphabet
+        self.vertical_text = vertical_text
         cnn = nn.Sequential()
 
         def convRelu(i, batchNormalization=False):
@@ -67,19 +73,28 @@ class CRNN(nn.Module):
             else:
                 cnn.add_module('relu{0}'.format(i), nn.ReLU(True))
 
+        # assume the shape of input is: 1x32x128 (C, H, W) for horizontal text and 1x128x32 for vertical text
         convRelu(0)
-        cnn.add_module('pooling{0}'.format(0), nn.MaxPool2d(2, 2))  # 64x16x64
+        cnn.add_module('pooling{0}'.format(0), nn.MaxPool2d(2, 2))  # 64x16x64 or 64x64x16
         convRelu(1)
-        cnn.add_module('pooling{0}'.format(1), nn.MaxPool2d(2, 2))  # 128x8x32
+        cnn.add_module('pooling{0}'.format(1), nn.MaxPool2d(2, 2))  # 128x8x32 or 128x32x8
         convRelu(2, True)
         convRelu(3)
-        cnn.add_module('pooling{0}'.format(2),
-                       nn.MaxPool2d((2, 2), (2, 1), (0, 1)))  # 256x4x16
+        if not self.vertical_text:
+            cnn.add_module('pooling{0}'.format(2),
+                           nn.MaxPool2d((2, 2), (2, 1), (0, 1)))  # 256x4x32
+        else:
+            cnn.add_module('pooling{0}'.format(2),
+                           nn.MaxPool2d((2, 2), (1, 2), (1, 0))) # 256x32x4
         convRelu(4, True)
         convRelu(5)
-        cnn.add_module('pooling{0}'.format(3),
-                       nn.MaxPool2d((2, 2), (2, 1), (0, 1)))  # 512x2x16
-        convRelu(6, True)  # 512x1x16
+        if not self.vertical_text:
+            cnn.add_module('pooling{0}'.format(3),
+                           nn.MaxPool2d((2, 2), (2, 1), (0, 1)))  # 512x2x32
+        else:
+            cnn.add_module('pooling{0}'.format(3),
+                           nn.MaxPool2d((2, 2), (1, 2), (1, 0)))  # 512x32x2
+        convRelu(6, True)  # 512x1x30 or 512x30x1
         self.cnn = cnn
         if self.lstmFlag:
             # two-layer LSTM: 512-d to nClass-d
@@ -91,13 +106,22 @@ class CRNN(nn.Module):
             self.linear = nn.Linear(nh * 2, nclass)
 
     def forward(self, input):
+#         print('input size:', input.size())
         # conv features
         conv = self.cnn(input)
+#         print('debug conv feature size in forward (b, c, h, w): ', conv.size())
         b, c, h, w = conv.size()
 
-        assert h == 1, "the height of conv must be 1"
-        conv = conv.squeeze(2)
-        conv = conv.permute(2, 0, 1)  # [w, b, c]
+        if not self.vertical_text:
+            assert h == 1, "the height of conv must be 1"
+        else:
+            assert w == 1, 'The width of conv must be 1'
+        # (B, 512, 1, W/4) => (W/4, B, 512) or (B, 512, H/4, 1) => (H/4, B, 512)
+        if not self.vertical_text:
+            conv = conv.squeeze(2)
+            conv = conv.permute(2, 0, 1)  # [w, b, c]
+        else:
+            conv = conv.squeeze(3).permute(2, 0, 1)
         if self.lstmFlag:
             # rnn features
             output = self.rnn(conv)
@@ -123,7 +147,10 @@ class CRNN(nn.Module):
         self.eval()
 
     def predict(self, image):
-        image = resizeNormalize(image, 32)
+        if not self.vertical_text:
+            image = resizeNormalize(image, 32)
+        else:
+            image = resiezeNormalizeVerticalText(image, 32)
         image = image.astype(np.float32)
         image = torch.from_numpy(image)
         if torch.cuda.is_available() and self.GPU:
@@ -148,8 +175,8 @@ class CRNN(nn.Module):
             summary(self, input_size=(1, 32, 128))
         for i in range(n):
             res_new = boxes[i]['img']
-            # PIL image object
-            if res_new.size[1] < 16:
+            # PIL image object, if hight < 16 for horizontal text and width < 16 for vertical text
+            if res_new.size[0 if self.vertical_text else 1] < 16:
                 boxes[i]['text'] = ''
                 boxes[i]['raw res'] = ''
                 boxes[i]['raw preds'] = []
@@ -161,16 +188,21 @@ class CRNN(nn.Module):
             boxes[i]['raw preds'] = res[2]
         return boxes
 
-    def predict_batch(self, boxes, batch_size=1):
+    def predict_batch(self, boxes, batch_size=1, evaluation_per_batch=0, evaluation_metric=None):
         """
         predict on batch
+        DCMMC: 暂时只考虑横排文字
         """
         N = len(boxes)
-        res = []
         imgW = 0
         batch = N // batch_size
         if batch * batch_size != N:
             batch += 1
+        # loss for each sample and in total
+        losses = []
+        loss_total = 0.
+        print('#Batch: {} with batch_size={}'.format(batch, batch_size))
+        s_t = time()
         for i in range(batch):
             tmpBoxes = boxes[i * batch_size:(i + 1) * batch_size]
             imageBatch = []
@@ -184,9 +216,9 @@ class CRNN(nn.Module):
             # (N, C, H, W)
             imageArray = np.zeros((len(imageBatch), 1, 32, imgW),
                                   dtype=np.float32)
-            n = len(imageArray)
+            n_sample = len(imageArray)
             # pad 0 to ensure length is imgW
-            for j in range(n):
+            for j in range(n_sample):
                 _, h, w = imageBatch[j].shape
                 imageArray[j][:, :, :w] = imageBatch[j]
             image = torch.from_numpy(imageArray)
@@ -198,10 +230,23 @@ class CRNN(nn.Module):
             # (T, B, nClass)
             preds = self(image)
             preds = preds.argmax(2)
-            n = preds.shape[1]
-            for j in range(n):
-                res.append(strLabelConverter(preds[:, j], self.alphabet))
-
-        for i in range(N):
-            boxes[i]['text'] = res[i]
-        return boxes
+            for j in range(n_sample):
+                # Best path greedy algorithm for CTC decode
+                pred_text = strLabelConverter(preds[:, j], self.alphabet)
+                boxes[i * batch_size + j]['pred_text'] = pred_text
+                if evaluation_metric:
+                    loss = evaluation_metric(boxes[i * batch_size]['true_text'], pred_text)
+                    losses.append(loss)
+                    loss_total += loss
+            if evaluation_per_batch > 0 and (i + 1) % evaluation_per_batch == 0:
+                print('overall loss in {} batches with batch_size={} is {:.6f}, took {:.4f}s.'.format(
+                      i + 1, batch_size,
+                      loss_total / (i * batch_size + n_sample),
+                      time() - s_t
+                     ))
+            # release cuda memory used by image
+            del image
+            del preds
+            torch.cuda.empty_cache()
+        print('All done after {:.4f}s, the overall loss is: {:.6f}'.format(time() - s_t, loss_total / N))
+        return boxes, losses, loss_total

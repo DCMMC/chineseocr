@@ -78,6 +78,7 @@ class TextOcrModel(object):
         newBoxes = []
         for index,box in enumerate(boxes):
             partImg, box, _ = rotate_cut_img(im, box, leftAdjustAlph, rightAdjustAlph)
+            # 变成灰度图
             box['img'] = partImg.convert('L')
             newBoxes.append(box)
         # print('*'*70, '\nDEBUG: newBoxes:', [b['img'].size for b in newBoxes])
@@ -102,6 +103,7 @@ class TextOcrModel(object):
         leftAdjustAlph     = args.get('leftAdjustAlph',0)
         rightAdjustAlph    = args.get('rightAdjustAlph',0)
         print_summary = args.get('print_summary', False)
+#         print('img in model:', img.shape)
         res                = self.ocr_batch(img,boxes,leftAdjustAlph,rightAdjustAlph,
                                             print_summary=print_summary)
         return res,angle

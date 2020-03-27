@@ -16,6 +16,13 @@ def resizeNormalize(img, imgH=32):
     img = (np.array(img) / 255.0 - 0.5) / 0.5
     return img
 
+def resiezeNormalizeVerticalText(img, imgW=32):
+    scale = img.size[0] / imgW
+    h = int(img.size[1] / scale)
+    img = img.resize((imgW, h), Image.BILINEAR)
+    w, h = img.size
+    img = (np.array(img) / 255.0 - 0.5) / 0.5
+    return img
 
 def strLabelConverter(res, alphabet):
     # Naive version of CTC
