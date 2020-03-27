@@ -11,6 +11,7 @@ import gc
 import h5py
 from PIL import Image
 import os
+import sys
 from time import time
 # 选用归一化后的编辑距离作为 evaluation metric
 from Levenshtein import distance as levenshtein_distance
@@ -71,18 +72,7 @@ crnn = CRNN(32, 1, nclass, 256, leakyRelu=False, lstmFlag=LSTMFLAG, GPU=GPU, alp
 crnn.load_weights(ocrModel)
 print('Load model done in {:.4f}s.'.format(time() - s_t))
 
-# Tuning hyperparameters \alpha and \beta of Scorer by grid search
-alpha_start, alpha_end, num_alpha = 0.0, 4.0, 20
-beta_start, beta_end, num_beta = 0.0, 1.0, 10
 alphabet_list = [c for c in alphabet]
-# create grid for search
-cand_alphas = np.linspace(alpha_start, alpha_end, num_alpha)
-cand_betas = np.linspace(beta_start, beta_end, num_beta)
-params_grid = [(alpha, beta) for alpha in cand_alphas
-               for beta in cand_betas]
-# 应为 CTC beam search 实在是有点慢，所以最好采用多线程，这里分配 30 核
-ctc_buffer_size = 20
-print('{} trials for grid search created.'.format(len(params_grid)))
 s_t = time()
 
 
@@ -108,47 +98,25 @@ del dataset_boxes_all
 print('Randomly sample 1/4 from dataset: {} samples.'.format(len(dataset_boxes)))
 
 # inference
-grid_res = []
-scorer = None
-for idx, (alpha, beta) in enumerate(params_grid):
-    if scorer:
-        del scorer
-    gc.collect()
-    # CTC beam search with language model Scorer
-    scorer = Scorer(alpha=alpha, beta=beta, model_path=os.path.join('/data/xiaowentao/chineseocr',
-                                                                 'models/zh_giga.no_cna_cmn.prune01244.klm'),
-                    vocabulary=alphabet_list)
-    print('scorer done.')
-    # 默认的 beam_size=500 特别慢
-    ctc_beam_lm_decoder = lambda raw_preds: ctc_beam_search_decoder_batch_pred(
-            probs_split=[softmax(raw_pred, dim=1) for raw_pred in raw_preds],
-            vocabulary=alphabet_list,
-            beam_size=10,
-            num_processes=ctc_buffer_size,
-            ext_scoring_func=scorer,
-            cutoff_prob=1.0,
-            cutoff_top_n=50)
-    boxes, losses, loss_total = crnn.predict_batch(dataset_boxes, batch_size=1, evaluation_per_batch=50,
-                                                   evaluation_metric=levenshtein_distance_norm,
-                                                   ctc_beam_lm_decoder=ctc_beam_lm_decoder,
-                                                   ctc_buffer_size=ctc_buffer_size)
-    grid_res.append(loss_total)
-    print('-' * 60, '\nTrial {} done, loss for alpha={} and beta={} is: {:.6f}'.format(idx,
-                                                                                       alpha,
-                                                                                       beta,
-                                                                                       loss_total))
-    
-# plot the results
-best_res_idx = np.argmax(grid_res)
-print('All done, the best result for grid research is: {} when alpha={} and beta={}.'.format(
-    params_grid[best_res_idx], *grid_res[best_res_idx]))
-fig = plt.figure()
-ax = fig.gca(projection='3d')
-surf = ax.plot_surface([i[0] for i in params_grid], [i[1] for i in params_grid],
-                       grid_res, cmap=cm.coolwarm, alpha=0.7,
-                       linewidth=0, antialiased=False)
-ax.set_zlim(-0.1, 1.0)
-ax.zaxis.set_major_locator(LinearLocator(10))
-ax.zaxis.set_major_formatter(FormatStrFormatter('%.04f'))
-fig.colorbar(surf, shrink=0.5, aspect=5)
-plt.show()
+alpha, beta = sys.argv[1:3]
+# CTC beam search with language model Scorer
+scorer = Scorer(alpha=alpha, beta=beta, model_path=os.path.join('/data/xiaowentao/chineseocr',
+                                                             'models/zh_giga.no_cna_cmn.prune01244.klm'),
+                vocabulary=alphabet_list)
+print('scorer done.')
+# 默认的 beam_size=500 特别慢
+ctc_beam_lm_decoder = lambda raw_preds: ctc_beam_search_decoder_batch_pred(
+        probs_split=[softmax(raw_pred, dim=1) for raw_pred in raw_preds],
+        vocabulary=alphabet_list,
+        beam_size=10,
+        num_processes=ctc_buffer_size,
+        ext_scoring_func=scorer,
+        cutoff_prob=1.0,
+        cutoff_top_n=50)
+boxes, losses, loss_total = crnn.predict_batch(dataset_boxes, batch_size=1, evaluation_per_batch=50,
+                                               evaluation_metric=levenshtein_distance_norm,
+                                               ctc_beam_lm_decoder=ctc_beam_lm_decoder,
+                                               ctc_buffer_size=ctc_buffer_size)
+print('-' * 60, '\nloss for alpha={} and beta={} is: {:.6f}'.format(alpha,
+                                                                                   beta,
+                                                                                   loss_total))
