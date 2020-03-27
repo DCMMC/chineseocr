@@ -146,7 +146,11 @@ std::vector<std::string> Scorer::split_labels(const std::vector<int>& labels) {
 }
 
 void Scorer::set_char_map(const std::vector<std::string>& char_list) {
-  char_list_ = char_list;
+  // DCMMC: 采用显示拷贝避免 segFault （希望能）
+  for (std::string char_ : char_list) {
+    char_list_.push_back(char_);
+  }
+//   char_list_ = char_list;
   char_map_.clear();
 
   // Set the char map for the FST for spelling correction

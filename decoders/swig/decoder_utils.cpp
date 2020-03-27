@@ -52,7 +52,8 @@ std::vector<std::pair<double, std::string>> get_beam_search_result(
 
   std::sort(space_prefixes.begin(), space_prefixes.end(), prefix_compare);
   std::vector<std::pair<double, std::string>> output_vecs;
-  for (size_t i = 0; i < beam_size && i < space_prefixes.size(); ++i) {
+  // DCMMC: 只保留一个最好的结果
+  for (size_t i = 0; i < beam_size && i < space_prefixes.size() && i <= 1; ++i) {
     std::vector<int> output;
     space_prefixes[i]->get_path_vec(output);
     // convert index to string

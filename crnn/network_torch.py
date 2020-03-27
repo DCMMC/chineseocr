@@ -188,11 +188,14 @@ class CRNN(nn.Module):
             boxes[i]['raw preds'] = res[2]
         return boxes
 
-    def predict_batch(self, boxes, batch_size=1, evaluation_per_batch=0, evaluation_metric=None):
+    def predict_batch(self, boxes, batch_size=1, evaluation_per_batch=0, evaluation_metric=None,
+                      ctc_beam_lm_decoder=None, ctc_buffer_size=1):
         """
         predict on batch
         DCMMC: 暂时只考虑横排文字
         """
+        assert ctc_buffer_size >= 1
+        ctc_buffer = []
         N = len(boxes)
         imgW = 0
         batch = N // batch_size
@@ -229,15 +232,33 @@ class CRNN(nn.Module):
                 image = image.cpu()
             # (T, B, nClass)
             preds = self(image)
-            preds = preds.argmax(2)
-            for j in range(n_sample):
-                # Best path greedy algorithm for CTC decode
-                pred_text = strLabelConverter(preds[:, j], self.alphabet)
-                boxes[i * batch_size + j]['pred_text'] = pred_text
-                if evaluation_metric:
-                    loss = evaluation_metric(boxes[i * batch_size]['true_text'], pred_text)
-                    losses.append(loss)
-                    loss_total += loss
+            if ctc_beam_lm_decoder:
+                # (B, T, nClass)
+                preds = preds.transpose(1, 0)
+                for pred in preds:
+                    ctc_buffer.append(pred)
+                for j in range(1, n_sample + 1):
+                    if ((i * batch_size) + j) % ctc_buffer_size == 0:
+                        pred_texts = ctc_beam_lm_decoder(ctc_buffer)
+                        curr = i * batch_size + j
+                        for idx, k in enumerate(range(curr - len(ctc_buffer), curr)):
+                            boxes[k]['pred_text'] = pred_texts[idx]
+                            if evaluation_metric:
+                                loss = evaluation_metric(boxes[k]['true_text'], pred_texts[idx])
+                                losses.append(loss)
+                                loss_total += loss
+                        ctc_buffer = []
+            else:
+                preds = preds.argmax(2)
+            if not ctc_beam_lm_decoder:
+                for j in range(n_sample):
+                    # Best path greedy algorithm for CTC decode
+                    pred_text = strLabelConverter(preds[:, j], self.alphabet)
+                    boxes[i * batch_size + j]['pred_text'] = pred_text
+                    if evaluation_metric:
+                        loss = evaluation_metric(boxes[i * batch_size + j]['true_text'], pred_text)
+                        losses.append(loss)
+                        loss_total += loss
             if evaluation_per_batch > 0 and (i + 1) % evaluation_per_batch == 0:
                 print('overall loss in {} batches with batch_size={} is {:.6f}, took {:.4f}s.'.format(
                       i + 1, batch_size,
@@ -249,4 +270,4 @@ class CRNN(nn.Module):
             del preds
             torch.cuda.empty_cache()
         print('All done after {:.4f}s, the overall loss is: {:.6f}'.format(time() - s_t, loss_total / N))
-        return boxes, losses, loss_total
+        return boxes, losses, loss_total / N

@@ -70,9 +70,9 @@ std::vector<std::pair<double, std::string>> ctc_beam_search_decoder(
   // std::cout << "Start prefix search over time" << std::endl;
 
   // prefix search over time
-  auto start_voca = std::chrono::high_resolution_clock::now();
-  auto elapsed = std::chrono::high_resolution_clock::now() - start_voca;
-  auto seconds = 0.001 * std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+  // auto start_voca = std::chrono::high_resolution_clock::now();
+  // auto elapsed = std::chrono::high_resolution_clock::now() - start_voca;
+  // auto seconds = 0.001 * std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
   for (size_t time_step = 0; time_step < num_time_steps; ++time_step) {
     auto &prob = probs_seq[time_step];
     // std::cout << "time step " << time_step << std::endl;
@@ -186,9 +186,9 @@ std::vector<std::pair<double, std::string>> ctc_beam_search_decoder(
     // seconds = 0.000001 * std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
     // std::cout << "Time to take " << time_step << " time_steps for " << beam_size << " beams: " << seconds << "s." << std::endl;
   }  // end of loop over time
-  auto elapsed_voca = std::chrono::high_resolution_clock::now() - start_voca;
-  auto seconds_voca = 0.000001 * std::chrono::duration_cast<std::chrono::microseconds>(elapsed_voca).count();
-  std::cout << "Time to take all vocabulary: " << seconds_voca << "s." << std::endl;
+  // auto elapsed_voca = std::chrono::high_resolution_clock::now() - start_voca;
+  // auto seconds_voca = 0.000001 * std::chrono::duration_cast<std::chrono::microseconds>(elapsed_voca).count();
+  // std::cout << "Time to take all vocabulary: " << seconds_voca << "s." << std::endl;
 
   // score the last word of each prefix that doesn't end with space
   if (ext_scorer != nullptr && !ext_scorer->is_character_based()) {

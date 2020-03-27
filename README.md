@@ -169,5 +169,12 @@ debug:
 ```
 conda install gdb -c conda-forge
 export PYTHONPATH=`pwd`:$PYTHONPATH
-gdb -x test_ctc_beam.py
+export PYTHONFAULTHANDLER=1
+gdb python
+>>> set print thread-event off
+>>> run test_ctc_beam.py
+# if encounter error
+>>> bt
+>>> py-bt
+>>> py-list
 ```
