@@ -17,3 +17,4 @@ buil
 __pycache__
 debug.txt
 dataset/*
+models/XLNet_*

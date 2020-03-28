@@ -22,6 +22,7 @@ from config import ocrModelTorchLstm as ocrModel
 # decoders 取自 baidu 的 [DeepSpeech](https://github.com/PaddlePaddle/DeepSpeech)
 import swig_decoders
 import random
+import torch
 from torch.nn.functional import softmax
 import numpy as np
 # matplotlib
@@ -61,6 +62,12 @@ def levenshtein_distance_norm(str1, str2):
     return levenshtein_distance(str1, str2) / max_len
 
 
+# set seed
+seed = int(sys.argv[3])
+random.seed(seed)
+torch.manual_seed(seed)
+np.random.seed(seed)
+
 GPUID = 0
 os.environ["CUDA_VISIBLE_DEVICES"] = str(GPUID)
 s_t = time()
@@ -73,32 +80,32 @@ crnn.load_weights(ocrModel)
 print('Load model done in {:.4f}s.'.format(time() - s_t))
 
 alphabet_list = [c for c in alphabet]
+ctc_buffer_size = 20
 s_t = time()
 
 
 # 因为数据规模不大，所以直接全部加载到内存
-dataset_boxes_all = []
+dataset_boxes = []
 with h5py.File('/data/xiaowentao/chineseocr/dataset/ICPR_2018_MTWI_STR.hdf5', 'r') as f:
     print('Loading dataset into memory.')
     for img in f:
         # 暂时只考虑水平文本行
         if not bool(f[img]['vertical'][...]):
-            if len(dataset_boxes_all) >= 1 * 256 * 10:
+            if len(dataset_boxes) >= len(f) // 24:
                 break
-            dataset_boxes_all.append({
+            dataset_boxes.append({
                 # 灰度图
                 'img': Image.fromarray(f[img]['img'][...]).convert('RGB').convert('L'),
                 # 标签
                 'true_text': str(f[img]['txt'][...])
             })
-print('Dataset loaded, #sample={}, took {:.4f}s.'.format(len(dataset_boxes_all), time() - s_t))
+print('Dataset loaded, #sample={}, took {:.4f}s.'.format(len(dataset_boxes), time() - s_t))
 # random sample 1/4 from dataset
-dataset_boxes = random.sample(dataset_boxes_all, len(dataset_boxes_all) // 4)
-del dataset_boxes_all
-print('Randomly sample 1/4 from dataset: {} samples.'.format(len(dataset_boxes)))
+# dataset_boxes = random.sample(dataset_boxes_all, len(dataset_boxes) // 24)
+print('Randomly sample 1/24 from dataset: {} samples.'.format(len(dataset_boxes)))
 
 # inference
-alpha, beta = sys.argv[1:3]
+alpha, beta = float(sys.argv[1]), float(sys.argv[2])
 # CTC beam search with language model Scorer
 scorer = Scorer(alpha=alpha, beta=beta, model_path=os.path.join('/data/xiaowentao/chineseocr',
                                                              'models/zh_giga.no_cna_cmn.prune01244.klm'),
