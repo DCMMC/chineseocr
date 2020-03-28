@@ -78,6 +78,7 @@ def encode_pieces(sp_model, text, return_unicode=True, sample=False):
     pieces = sp_model.SampleEncodeAsPieces(text, 64, 0.1)
   new_pieces = []
   for piece in pieces:
+    # 针对数字进行细分
     if len(piece) > 1 and piece[-1] == ',' and piece[-2].isdigit():
       cur_pieces = sp_model.EncodeAsPieces(
           piece[:-1].replace(SPIECE_UNDERLINE, ''))

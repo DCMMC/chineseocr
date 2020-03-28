@@ -577,14 +577,17 @@ def file_based_convert_examples_to_features(
     features["input_mask"] = create_float_feature(feature.input_mask)
     features["segment_ids"] = create_int_feature(feature.segment_ids)
     if label_list is not None:
+      # classification task
       features["label_ids"] = create_int_feature([feature.label_id])
     else:
+      # regression task
       features["label_ids"] = create_float_feature([float(feature.label_id)])
+    # fake sample to maintain consistent batch size among all batches for TPU
     features["is_real_example"] = create_int_feature(
         [int(feature.is_real_example)])
 
-    tf._example = tf.train.Example(features=tf.train.Features(feature=features))
-    writer.write(tf._example.SerializeToString())
+    tf_example = tf.train.Example(features=tf.train.Features(feature=features))
+    writer.write(tf_example.SerializeToString())
   writer.close()
 
 
@@ -603,7 +606,7 @@ def file_based_input_fn_builder(input_file, seq_length, is_training,
   if FLAGS.is_regression:
     name_to_features["label_ids"] = tf.FixedLenFeature([], tf.float32)
 
-  tf.logging.info("Input tf.record file {}".format(input_file))
+  tf.logging.info("Input tfrecord file {}".format(input_file))
 
   def _decode_record(record, name_to_features):
     """Decodes a record to a TensorFlow example."""
@@ -665,9 +668,14 @@ def get_model_fn(n_class):
       (total_loss, per_example_loss, logits
           ) = function_builder.get_regression_loss(FLAGS, features, is_training)
     else:
+      # (total_loss, per_example_loss, logits
+      #     ) = function_builder.get_classification_loss(
+      #     FLAGS, features, n_class, is_training)
+      # DCMMC: test with LM loss
       (total_loss, per_example_loss, logits
-          ) = function_builder.get_classification_loss(
+          ) = function_builder.get_loss(
           FLAGS, features, n_class, is_training)
+
 
     #### Check model parameters
     num_params = sum([np.prod(v.shape) for v in tf.trainable_variables()])
@@ -821,6 +829,8 @@ def main(_):
 
   sp = spm.SentencePieceProcessor()
   sp.Load(FLAGS.spiece_model_file)
+
+  # 将文本转化为 ids
   def tokenize_fn(text):
     text = preprocess_text(text, lower=FLAGS.uncased)
     return encode_ids(sp, text)
@@ -847,10 +857,10 @@ def main(_):
         config=run_config)
 
   if FLAGS.do_train:
-    train_file_base = "{}.len-{}.train.tf._record".format(
+    train_file_base = "{}.len-{}.train.tf_record".format(
         spm_basename, FLAGS.max_seq_length)
     train_file = os.path.join(FLAGS.output_dir, train_file_base)
-    tf.logging.info("Use tf.record file {}".format(train_file))
+    tf.logging.info("Use tfrecord file {}".format(train_file))
 
     train_examples = processor.get_train_examples(FLAGS.data_dir)
     np.random.shuffle(train_examples)
@@ -887,7 +897,7 @@ def main(_):
     while len(eval_examples) % FLAGS.eval_batch_size != 0:
       eval_examples.append(PaddingInputExample())
 
-    eval_file_base = "{}.len-{}.{}.eval.tf._record".format(
+    eval_file_base = "{}.len-{}.{}.eval.tf_record".format(
         spm_basename, FLAGS.max_seq_length, FLAGS.eval_split)
     eval_file = os.path.join(FLAGS.output_dir, eval_file_base)
 
@@ -953,7 +963,7 @@ def main(_):
     tf.logging.info(log_str)
 
   if FLAGS.do_predict:
-    eval_file_base = "{}.len-{}.{}.predict.tf._record".format(
+    eval_file_base = "{}.len-{}.{}.predict.tf_record".format(
         spm_basename, FLAGS.max_seq_length, FLAGS.eval_split)
     eval_file = os.path.join(FLAGS.output_dir, eval_file_base)
 
