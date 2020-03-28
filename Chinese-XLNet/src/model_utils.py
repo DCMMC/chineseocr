@@ -196,12 +196,12 @@ def clean_ckpt(_):
     var_values[name] = tensor
 
   with tf.variable_scope(tf.get_variable_scope(), reuse=tf.AUTO_REUSE):
-    tf_vars = [
+    tf._vars = [
         tf.get_variable(v, shape=var_values[v].shape, dtype=var_dtypes[v])
         for v in var_values
     ]
-  placeholders = [tf.placeholder(v.dtype, shape=v.shape) for v in tf_vars]
-  assign_ops = [tf.assign(v, p) for (v, p) in zip(tf_vars, placeholders)]
+  placeholders = [tf.placeholder(v.dtype, shape=v.shape) for v in tf._vars]
+  assign_ops = [tf.assign(v, p) for (v, p) in zip(tf._vars, placeholders)]
   global_step = tf.Variable(
       0, name="global_step", trainable=False, dtype=tf.int64)
   saver = tf.train.Saver(tf.all_variables())
@@ -242,12 +242,12 @@ def avg_checkpoints(model_dir, output_model_dir, last_k):
     var_values[name] /= len(checkpoints)
 
   with tf.variable_scope(tf.get_variable_scope(), reuse=tf.AUTO_REUSE):
-    tf_vars = [
+    tf._vars = [
         tf.get_variable(v, shape=var_values[v].shape, dtype=var_dtypes[v])
         for v in var_values
     ]
-  placeholders = [tf.placeholder(v.dtype, shape=v.shape) for v in tf_vars]
-  assign_ops = [tf.assign(v, p) for (v, p) in zip(tf_vars, placeholders)]
+  placeholders = [tf.placeholder(v.dtype, shape=v.shape) for v in tf._vars]
+  assign_ops = [tf.assign(v, p) for (v, p) in zip(tf._vars, placeholders)]
   global_step = tf.Variable(
       0, name="global_step", trainable=False, dtype=tf.int64)
   saver = tf.train.Saver(tf.all_variables())

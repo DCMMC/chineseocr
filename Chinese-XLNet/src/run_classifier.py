@@ -5,6 +5,10 @@ from __future__ import print_function
 from os.path import join
 from absl import flags
 import os
+
+GPUID = 2
+os.environ['CUDA_VISIBLE_DEVICES'] = str(GPUID)
+
 import sys
 import csv
 import collections
@@ -27,7 +31,6 @@ import function_builder
 from classifier_utils import PaddingInputExample
 from classifier_utils import convert_single_example
 from prepro_utils import preprocess_text, encode_ids
-
 
 # Model
 flags.DEFINE_string("model_config_path", default=None,
@@ -452,8 +455,8 @@ class CSVProcessor(DataProcessor):
         continue
       guid = "%s-%s" % (set_type, i)
 
-      text_a = line[0]
-      label = line[1]
+      text_a = line[1]
+      label = line[0]
 
       examples.append(
         InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
@@ -469,8 +472,8 @@ class CSVProcessor(DataProcessor):
         continue
       guid = "%s-%s" % (set_type, i)
 
-      text_a = line[0]
-      label = line[1]
+      text_a = line[1]
+      label = line[0]
 
       examples.append(
         InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
@@ -543,10 +546,10 @@ def file_based_convert_examples_to_features(
 
   # do not create duplicated records
   if tf.gfile.Exists(output_file) and not FLAGS.overwrite_data:
-    tf.logging.info("Do not overwrite tfrecord {} exists.".format(output_file))
+    tf.logging.info("Do not overwrite tf.record {} exists.".format(output_file))
     return
 
-  tf.logging.info("Create new tfrecord {}.".format(output_file))
+  tf.logging.info("Create new tf.record {}.".format(output_file))
 
   writer = tf.python_io.TFRecordWriter(output_file)
 
@@ -580,8 +583,8 @@ def file_based_convert_examples_to_features(
     features["is_real_example"] = create_int_feature(
         [int(feature.is_real_example)])
 
-    tf_example = tf.train.Example(features=tf.train.Features(feature=features))
-    writer.write(tf_example.SerializeToString())
+    tf._example = tf.train.Example(features=tf.train.Features(feature=features))
+    writer.write(tf._example.SerializeToString())
   writer.close()
 
 
@@ -600,7 +603,7 @@ def file_based_input_fn_builder(input_file, seq_length, is_training,
   if FLAGS.is_regression:
     name_to_features["label_ids"] = tf.FixedLenFeature([], tf.float32)
 
-  tf.logging.info("Input tfrecord file {}".format(input_file))
+  tf.logging.info("Input tf.record file {}".format(input_file))
 
   def _decode_record(record, name_to_features):
     """Decodes a record to a TensorFlow example."""
@@ -844,10 +847,10 @@ def main(_):
         config=run_config)
 
   if FLAGS.do_train:
-    train_file_base = "{}.len-{}.train.tf_record".format(
+    train_file_base = "{}.len-{}.train.tf._record".format(
         spm_basename, FLAGS.max_seq_length)
     train_file = os.path.join(FLAGS.output_dir, train_file_base)
-    tf.logging.info("Use tfrecord file {}".format(train_file))
+    tf.logging.info("Use tf.record file {}".format(train_file))
 
     train_examples = processor.get_train_examples(FLAGS.data_dir)
     np.random.shuffle(train_examples)
@@ -884,7 +887,7 @@ def main(_):
     while len(eval_examples) % FLAGS.eval_batch_size != 0:
       eval_examples.append(PaddingInputExample())
 
-    eval_file_base = "{}.len-{}.{}.eval.tf_record".format(
+    eval_file_base = "{}.len-{}.{}.eval.tf._record".format(
         spm_basename, FLAGS.max_seq_length, FLAGS.eval_split)
     eval_file = os.path.join(FLAGS.output_dir, eval_file_base)
 
@@ -911,6 +914,7 @@ def main(_):
         tf.logging.info(f"ckpt_name: {ckpt_name}")
         cur_filename = join(FLAGS.model_dir, ckpt_name)
         step = cur_filename.split("-")[-1]
+        # step = step if step.isdigit() else '0'
         if step.isdigit():
           global_step = int(step)
           tf.logging.info("Add {} to eval list.".format(cur_filename))
@@ -949,7 +953,7 @@ def main(_):
     tf.logging.info(log_str)
 
   if FLAGS.do_predict:
-    eval_file_base = "{}.len-{}.{}.predict.tf_record".format(
+    eval_file_base = "{}.len-{}.{}.predict.tf._record".format(
         spm_basename, FLAGS.max_seq_length, FLAGS.eval_split)
     eval_file = os.path.join(FLAGS.output_dir, eval_file_base)
 
