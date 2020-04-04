@@ -100,8 +100,8 @@ with h5py.File('/data/xiaowentao/chineseocr/dataset/ICPR_2018_MTWI_STR.hdf5', 'r
                 'true_text': str(f[img]['txt'][...])
             })
 print('Dataset loaded, #sample={}, took {:.4f}s.'.format(len(dataset_boxes), time() - s_t))
-# random sample 1/4 from dataset
-# dataset_boxes = random.sample(dataset_boxes_all, len(dataset_boxes) // 24)
+# random sample 1/24 from dataset
+# dataset_boxes = random.sample(dataset_boxes, len(dataset_boxes) // 24)
 print('Randomly sample 1/24 from dataset: {} samples.'.format(len(dataset_boxes)))
 
 # inference

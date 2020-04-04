@@ -674,7 +674,7 @@ def get_model_fn(n_class):
       # DCMMC: test with LM loss
       (total_loss, per_example_loss, logits
           ) = function_builder.get_loss(
-          FLAGS, features, n_class, is_training)
+          FLAGS, features, n_class, {}, is_training)
 
 
     #### Check model parameters
