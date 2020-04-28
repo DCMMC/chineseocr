@@ -19,3 +19,6 @@ debug.txt
 dataset/*
 models/XLNet_*
 models/xlnet_*
+THUCNews
+THUCNews.zip
+TextRecognitionDataGenerator
