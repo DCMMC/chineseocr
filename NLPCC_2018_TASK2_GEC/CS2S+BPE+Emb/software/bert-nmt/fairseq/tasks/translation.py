@@ -215,6 +215,8 @@ class TranslationTask(FairseqTask):
         )
 
     def build_dataset_for_inference(self, src_tokens, src_lengths, srcbert, srcbert_sizes, berttokenizer):
+        print('#######debug:', type(srcbert_sizes),
+              len(srcbert_sizes))
         return LanguagePairDataset(src_tokens, src_lengths, self.source_dictionary, srcbert=srcbert, srcbert_sizes=srcbert_sizes, berttokenizer=berttokenizer)
 
     def max_positions(self):

@@ -26,5 +26,4 @@ less processed/train.all.trg > processed/train.trg_no_ds
 
 #########################
 # preprocessing
-python $FAIRSEQPY/preprocess.py --source-lang src_no_ds --target-lang trg_no_ds --trainpref processed/train --validpref processed/dev --testpref processed/dev --destdir processed/bin
-
+python $FAIRSEQPY/preprocess.py --source-lang src_no_ds --target-lang trg_no_ds --trainpref processed/train --validpref processed/dev --testpref processed/dev --destdir processed/bin_cs2s_no_ds
