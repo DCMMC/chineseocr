@@ -1,3 +1,5 @@
 bin*
 dev*
 train*
+ngram_results
+kenlm
